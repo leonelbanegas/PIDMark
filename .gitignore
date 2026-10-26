@@ -1,0 +1,28 @@
+# Dependencias instalables
+/node_modules/
+
+# Configuracion local: usar config.example.ini como plantilla
+/config.ini
+
+# Datos operativos, planos y copias locales
+/datos/
+/Buckups/
+/backups/
+/Backups/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.log
+
+# Archivos temporales y de diagnostico del directorio raiz
+/_tmpcmp/
+/_*.txt
+/_*.js
+/CONTEXTO-PID-MARK.txt
+
+# Archivos del sistema operativo y del editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/

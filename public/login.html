@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>P&amp;ID Mark - Iniciar sesión</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="css/estilos.css">
+  <style>
+    .loginFondo {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: #121212; padding: 24px; box-sizing: border-box;
+    }
+    body.temaClaro .loginFondo { background: #f2f3f5; }
+    .loginCaja {
+      /* Ancho suficiente para: 205 (logo) + 18 (gap) + 171,5 (Tecpetrol)
+         + 18*2 (padding) = 430,5px. Asi el gap y los margenes laterales
+         miden lo mismo. */
+      width: 100%; max-width: 432px; background: #1e1e1e; border: 1px solid #333;
+      border-radius: 10px; padding: 28px 18px; box-sizing: border-box;
+    }
+    body.temaClaro .loginCaja { background: #ffffff; border-color: #dfe1e5; }
+    .loginLogo {
+      display: flex; align-items: center; justify-content: space-between;
+      /* Mismo valor que el padding lateral de .loginCaja (18px). */
+      gap: 18px; margin-bottom: 18px;
+    }
+    /* Misma altura que los logos del resto de la app (97px). */
+    .loginLogo img { height: 97px; width: auto; display: block; }
+    .loginLogo .logoPidSvg { height: 97px; width: auto; display: block; }
+    .loginCaja h1 { font-size: 18px; margin: 0 0 18px; text-align: center; color: #fff; }
+    body.temaClaro .loginCaja h1 { color: #1c1c1c; }
+    .loginCaja label { display: block; font-size: 13px; color: #ccc; margin-bottom: 12px; }
+    body.temaClaro .loginCaja label { color: #444; }
+    .loginCaja input {
+      width: 100%; padding: 9px 10px; font-size: 14px; margin-top: 4px;
+      background: #121212; border: 1px solid #444; color: #eee; border-radius: 6px;
+      box-sizing: border-box;
+    }
+    body.temaClaro .loginCaja input { background: #f7f8fa; border-color: #cfd3d9; color: #1c1c1c; }
+    .loginCaja input:focus { outline: none; border-color: #2962FF; box-shadow: 0 0 0 2px rgba(41,98,255,0.35); }
+    .loginBoton {
+      width: 100%; padding: 10px; font-size: 14px; margin-top: 6px;
+      background: #2962FF; border: 1px solid #2962FF; color: #fff; border-radius: 6px; cursor: pointer;
+    }
+    .loginBoton:hover:not(:disabled) { background: #1e4fd6; }
+    .loginBoton:disabled { opacity: 0.5; cursor: not-allowed; }
+    .loginError { color: #e07070; font-size: 13px; margin-top: 10px; min-height: 16px; text-align: center; }
+    .loginAviso { margin: 0 0 6px; font-size: 14px; text-align: center; color: #fff; }
+    body.temaClaro .loginAviso { color: #1c1c1c; }
+    .loginAvisoChico { margin: 0 0 14px; font-size: 12px; text-align: center; color: #9aa0a6; }
+    .loginBotonSecundario {
+      width: 100%; padding: 8px; font-size: 13px; margin-top: 8px;
+      background: transparent; border: 1px solid #444; color: #bbb;
+      border-radius: 6px; cursor: pointer;
+    }
+    .loginBotonSecundario:hover { background: #2a2a2a; color: #fff; }
+    body.temaClaro .loginBotonSecundario { border-color: #cfd3d9; color: #444; }
+    body.temaClaro .loginBotonSecundario:hover { background: #eef0f3; color: #111; }
+  </style>
+</head>
+<body>
+  <div class="loginFondo">
+    <form class="loginCaja" id="formLogin" autocomplete="on">
+      <div class="loginLogo">
+                <!-- Creator: CorelDRAW -->
+<svg class="logoPidSvg" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+        viewBox="0 0 23044.379399999998 10905.016431095406">
+         <defs>
+          <style type="text/css">
+           <![CDATA[
+            .fil1 {fill:gray}
+            .fil2 {fill:#B4B4B4;fill-rule:nonzero}
+            .fil0 {fill:red;fill-rule:nonzero}
+           ]]>
+          </style>
+         </defs>
+         <g id="Capa_x0020_1">
+          <metadata id="CorelCorpID_0Corel-Layer"/>
+          <path class="fil0" d="M3223.62 0l4381.25 0c887.05,0 1693.08,362.5 2277.1,946.52 584.02,584.02 946.52,1390.05 946.52,2277.1l0 4381.25c0,887.05 -362.5,1693.08 -946.52,2277.1 -584.02,584.02 -1390.05,946.52 -2277.1,946.52l-4381.25 0c-887.05,0 -1693.08,-362.5 -2277.1,-946.52 -584.02,-584.02 -946.52,-1390.05 -946.52,-2277.1l0 -4381.25c0,-887.05 362.5,-1693.08 946.52,-2277.1 584.02,-584.02 1390.05,-946.52 2277.1,-946.52zm4381.25 1074.54l-4381.25 0c-590.44,0 -1127.6,241.94 -1517.37,631.71 -389.77,389.77 -631.71,926.93 -631.71,1517.37l0 4381.25c0,590.44 241.94,1127.6 631.71,1517.37 389.77,389.77 926.93,631.71 1517.37,631.71l4381.25 0c590.44,0 1127.6,-241.94 1517.37,-631.71 389.77,-389.77 631.71,-926.93 631.71,-1517.37l0 -4381.25c0,-590.44 -241.94,-1127.6 -631.71,-1517.37 -389.77,-389.77 -926.93,-631.71 -1517.37,-631.71z"/>
+          <path class="fil0" d="M9180.33 3602.32l-235 812.17c-82.45,282.41 -239.12,424.64 -469.99,424.64 -123.68,0 -300.96,0 -531.83,0 -239.12,0 -437,0 -593.67,0 -65.97,164.9 -138.11,346.3 -216.44,544.2 -78.33,197.89 -154.6,383.41 -228.81,556.56 659.63,-12.37 1096.64,-24.74 1311.02,-37.1l-272.1 836.91c-57.72,162.85 -115.44,276.22 -173.16,340.12 -57.71,63.9 -160.78,96.89 -309.2,96.89l-1088.4 0c-82.45,226.75 -210.26,562.75 -383.41,1008 -57.71,133.99 -107.19,218.5 -148.42,251.49 -74.21,59.78 -189.65,88.64 -346.31,88.64l-964.71 0c74.21,-115.44 272.1,-560.69 593.67,-1335.76 -173.16,0 -350.43,-4.12 -531.83,-12.37 -173.15,0 -338.06,0 -494.72,0 -82.45,230.87 -214.38,568.93 -395.78,1014.18 -65.96,148.42 -131.93,241.18 -197.89,278.28 -65.97,37.1 -181.4,55.66 -346.31,55.66l-915.24 0c57.72,-98.94 255.61,-548.32 593.67,-1348.12 -445.25,0 -841.03,16.49 -1187.33,49.47l272.1 -878.14c82.45,-272.1 247.36,-408.15 494.72,-408.15l939.98 0 457.63 -1100.76c-437.01,0 -828.66,16.49 -1174.97,49.47l284.47 -882.26c74.21,-237.05 226.74,-354.55 457.62,-354.55l927.61 0c98.94,-216.44 243.24,-548.32 432.88,-997.69 98.94,-232.93 276.22,-350.43 531.83,-350.43l952.34 0c-173.15,263.85 -391.66,713.23 -655.51,1348.12l1026.55 0c8.25,-8.25 148.42,-342.18 420.52,-1001.82 98.94,-230.87 296.83,-346.31 593.67,-346.31l890.5 0c-148.42,222.62 -362.8,672 -643.14,1348.12 667.88,-16.49 1109.01,-32.98 1323.39,-49.47zm-3092.03 1249.18c-173.16,0 -346.31,-4.13 -519.46,-12.37 -173.16,0 -338.07,0 -494.73,0 -65.96,162.85 -138.11,344.25 -216.44,544.2 -78.33,199.95 -154.6,385.47 -228.81,556.56l1014.19 0c74.21,-171.09 150.48,-354.55 228.81,-550.38 78.33,-195.83 150.48,-375.16 216.44,-538.01z"/>
+          <rect class="fil1" transform="matrix(6.21491E-14 0.490424 -2.34662 1.29887E-14 20337.9 6077.98)" width="1314.33" height="2045.13"/>
+          <g id="_2022922068048">
+           <path class="fil2" d="M11563.23 5733.94l1228.7 0 0 -2211.67 1105.83 0c589.77,0 1064.87,-475.09 1064.87,-1064.87l0 -1392.53c0,-589.77 -475.1,-1064.87 -1064.87,-1064.87l-2334.54 0 0 5733.94zm1228.7 -3276.54l0 -1392.53 671.68 0c155.64,0 270.32,114.69 270.32,238.92l0 914.7c0,124.23 -114.68,238.91 -270.32,238.91l-671.68 0z"/>
+           <polygon class="fil2" points="17995.67,5733.94 19224.37,5733.94 19224.37,0 17995.67,0 "/>
+           <path class="fil2" d="M19568.41 5733.94l2326.35 0c597.96,0 1073.06,-516.05 1073.06,-1064.87l0 -3604.2c0,-589.77 -475.1,-1064.87 -1073.06,-1064.87l-2326.35 0 0 5733.94zm2170.71 -1343.38c0,155.63 -114.67,278.5 -278.5,278.5l-630.73 0 0 -3604.2 630.73 0c163.83,0 278.5,114.69 278.5,237.55l0 3088.14z"/>
+           <path class="fil2" d="M16949.73 4602.29c-142.99,157.78 -299.13,276.11 -467.59,355 -168.46,78.89 -350.89,118.33 -547.3,118.33 -361.58,0 -648.37,-121.62 -860.39,-364.86 -171.74,-198.87 -258.03,-419.92 -258.03,-664.81 0,-217.77 69.85,-414.17 210.37,-589.21 140.53,-175.86 350.9,-329.52 629.47,-462.65 -160.24,-182.43 -267.07,-331.17 -320.49,-445.39 -53.42,-113.41 -80.53,-223.53 -80.53,-329.53 0,-212.02 83,-396.09 249.82,-552.23 165.99,-156.96 375.55,-235.03 628.65,-235.03 240.77,0 438.82,73.96 592.49,221.88 153.67,147.92 230.1,326.25 230.1,533.33 0,336.1 -223.53,623.71 -671.39,861.21l639.34 802.04c73.13,-141.35 129.83,-304.87 170.1,-491.41l448.69 96.97c-77.25,307.34 -181.61,558.8 -313.91,755.2 161.88,214.48 345.96,394.45 550.58,540.72l-290.9 343.49c-174.22,-110.94 -353.36,-276.11 -539.08,-493.06zm-887.51 -1833.36c189,-111.76 310.63,-208.73 366.5,-292.54 55.88,-83.82 83.82,-176.69 83.82,-278.58 0,-120.8 -38.62,-219.42 -115.05,-295.84 -76.43,-76.42 -172.57,-115.05 -286.79,-115.05 -117.51,0 -216.13,37.8 -294.19,113.4 -78.07,75.6 -117.51,168.46 -117.51,278.58 0,54.24 13.97,112.58 42.73,172.57 27.94,60.81 69.85,124.91 126.55,192.29l193.94 225.16zm611.39 1494.79l-790.53 -986.94c-235.03,138.87 -393.63,267.89 -474.98,387.05 -82.18,119.16 -123.27,236.67 -123.27,353.36 0,142.17 56.7,290.08 170.93,443.75 113.4,153.68 274.47,230.09 482.38,230.09 129.84,0 264.61,-39.44 402.66,-119.15 138.88,-79.71 249.82,-182.44 332.82,-308.16z"/>
+           <path class="fil2" d="M11563.23 10750.64l0 -4643.11 757.64 0 900.3 3287.79 180.5 687.38c44.31,-171.85 111.32,-419.34 202.1,-744.67l911.12 -3230.51 679.82 0 0 4643.11 -486.36 0 0 -3903.84 -1106.74 3903.84 -453.93 0 -1098.09 -3967.61 0 3967.61 -486.36 0zm6174.61 -413.95c-156.72,163.2 -318.84,285.33 -487.44,367.48 -169.69,83.22 -344.78,124.29 -526.35,124.29 -287.49,0 -516.62,-86.47 -687.38,-260.47 -171.85,-172.93 -257.23,-406.39 -257.23,-700.36 0,-194.55 39.99,-366.39 121.05,-516.62 79.98,-150.23 190.22,-268.04 329.64,-352.34 139.42,-84.3 351.26,-146.99 634.43,-186.98 380.44,-54.04 660.37,-118.89 837.62,-194.55l3.24 -145.91c0,-231.28 -41.07,-393.41 -123.21,-487.44 -115.64,-135.1 -293.97,-203.19 -533.91,-203.19 -217.24,0 -379.36,45.39 -487.44,135.1 -107,89.7 -185.9,259.39 -236.69,506.89l-466.9 -84.3c65.93,-357.74 197.78,-617.14 397.73,-780.34 199.95,-163.2 486.36,-244.26 858.15,-244.26 289.65,0 516.62,54.04 681.98,163.2 164.28,108.08 269.12,243.18 312.35,403.14 43.23,161.04 64.84,394.49 64.84,702.52l0 759.8c0,531.76 9.73,866.8 30.26,1005.15 19.45,137.26 59.44,272.36 118.89,403.14l-486.36 0c-49.72,-115.64 -82.14,-253.98 -97.27,-413.95zm-35.67 -1272.09c-170.77,84.3 -425.83,155.63 -764.13,213.99 -196.71,33.5 -333.96,72.41 -411.79,115.65 -78.9,43.23 -139.42,104.83 -182.65,183.73 -43.23,78.9 -64.85,170.77 -64.85,274.52 0,159.96 49.72,288.57 149.15,384.77 99.43,96.19 236.7,143.75 411.79,143.75 167.52,0 318.83,-43.23 455.01,-129.7 136.18,-86.46 238.85,-202.11 305.86,-346.94 68.09,-143.74 101.6,-354.5 101.6,-631.18l0 -208.59zm1196.45 1686.04l0 -3365.6 421.51 0 0 515.54c108.08,-236.7 206.43,-393.41 296.14,-471.23 89.71,-76.74 190.22,-115.65 302.62,-115.65 155.63,0 315.59,60.53 477.71,181.58l-155.64 531.75c-116.73,-82.14 -229.13,-123.21 -339.37,-123.21 -99.43,0 -190.22,34.58 -272.36,104.84 -83.22,69.17 -141.59,166.44 -175.09,290.74 -59.44,217.23 -88.62,447.45 -88.62,692.79l0 1758.46 -466.9 0zm1783.31 0l0 -4643.11 466.9 0 0 2637.15 1105.66 -1359.65 608.49 0 -1054.86 1249.4 1159.7 2116.2 -572.83 0 -920.84 -1720.63 -325.32 385.85 0 1334.78 -466.9 0z"/>
+          </g>
+         </g>
+        </svg>
+        <img src="img/tecpetrol.png" alt="Tecpetrol">
+      </div>
+      <h1 id="loginTitulo">Iniciar sesión</h1>
+
+      <!-- PASO 1: usuario + contraseña -->
+      <div id="bloqueLogin">
+        <label>Usuario
+          <input type="text" id="inpUsuario" autocomplete="username" required>
+        </label>
+        <label>Contraseña
+          <input type="password" id="inpPassword" autocomplete="current-password">
+        </label>
+        <button type="submit" class="loginBoton" id="btnIngresar">Ingresar</button>
+      </div>
+
+      <!-- PASO 2: usuario nuevo SIN clave -> la define aca -->
+      <div id="bloqueCrearClave" style="display:none;">
+        <p class="loginAviso" id="txtCrearClaveUsuario"></p>
+        <p class="loginAvisoChico">Es la primera vez que ingresás. Creá tu contraseña (mínimo 6 caracteres).</p>
+        <label>Clave
+          <input type="password" id="inpClaveNueva" autocomplete="new-password">
+        </label>
+        <label>Repetir clave
+          <input type="password" id="inpClaveNueva2" autocomplete="new-password">
+        </label>
+        <button type="button" class="loginBoton" id="btnCrearClave">Crear clave e ingresar</button>
+        <button type="button" class="loginBotonSecundario" id="btnVolverLogin">← Volver</button>
+      </div>
+
+      <div class="loginError" id="loginError"></div>
+    </form>
+  </div>
+
+  <script src="js/login.js"></script>
+</body>
+</html>

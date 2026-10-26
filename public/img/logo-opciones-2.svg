@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" width="900" height="1100" font-family="system-ui, Arial, sans-serif">
+  <rect width="900" height="1100" fill="#1a1a1a"/>
+  <text x="450" y="42" fill="#ffffff" font-size="26" font-weight="bold" text-anchor="middle">P&amp;ID Mark - Opciones (estilo monograma / mira)</text>
+  <text x="450" y="68" fill="#888" font-size="14" text-anchor="middle">Color principal: #D50000</text>
+
+  <!-- 1: PM con mira centrada -->
+  <g transform="translate(30,90)">
+    <rect width="400" height="190" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">1</text>
+    <g transform="translate(200,110)">
+      <circle cx="0" cy="0" r="52" fill="none" stroke="#D50000" stroke-width="4"/>
+      <line x1="-72" y1="0" x2="-52" y2="0" stroke="#D50000" stroke-width="4"/>
+      <line x1="52" y1="0" x2="72" y2="0" stroke="#D50000" stroke-width="4"/>
+      <line x1="0" y1="-72" x2="0" y2="-52" stroke="#D50000" stroke-width="4"/>
+      <line x1="0" y1="52" x2="0" y2="72" stroke="#D50000" stroke-width="4"/>
+      <text x="-14" y="16" fill="#D50000" font-size="50" font-weight="bold" text-anchor="middle">P</text>
+      <text x="24" y="16" fill="#ffffff" font-size="50" font-weight="bold" text-anchor="middle">M</text>
+    </g>
+  </g>
+
+  <!-- 2: Mira con P dentro -->
+  <g transform="translate(470,90)">
+    <rect width="400" height="190" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">2</text>
+    <g transform="translate(200,110)">
+      <circle cx="0" cy="0" r="54" fill="none" stroke="#D50000" stroke-width="6"/>
+      <line x1="-78" y1="0" x2="-54" y2="0" stroke="#D50000" stroke-width="5"/>
+      <line x1="54" y1="0" x2="78" y2="0" stroke="#D50000" stroke-width="5"/>
+      <line x1="0" y1="-78" x2="0" y2="-54" stroke="#D50000" stroke-width="5"/>
+      <line x1="0" y1="54" x2="0" y2="78" stroke="#D50000" stroke-width="5"/>
+      <text x="0" y="18" fill="#D50000" font-size="58" font-weight="bold" text-anchor="middle">P</text>
+    </g>
+  </g>
+
+  <!-- 3: PM apilado con mira -->
+  <g transform="translate(30,300)">
+    <rect width="400" height="190" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">3</text>
+    <g transform="translate(200,110)">
+      <text x="0" y="-12" fill="#D50000" font-size="52" font-weight="bold" text-anchor="middle">P</text>
+      <text x="0" y="34" fill="#ffffff" font-size="52" font-weight="bold" text-anchor="middle">M</text>
+      <circle cx="0" cy="11" r="7" fill="none" stroke="#D50000" stroke-width="3"/>
+    </g>
+  </g>
+
+  <!-- 4: Mira con PM diagonal -->
+  <g transform="translate(470,300)">
+    <rect width="400" height="190" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">4</text>
+    <g transform="translate(200,110)">
+      <circle cx="0" cy="0" r="52" fill="none" stroke="#D50000" stroke-width="4" stroke-dasharray="8 6"/>
+      <line x1="-36" y1="-36" x2="36" y2="36" stroke="#D50000" stroke-width="3"/>
+      <text x="-10" y="14" fill="#D50000" font-size="46" font-weight="bold" text-anchor="middle">P</text>
+      <text x="26" y="14" fill="#ffffff" font-size="46" font-weight="bold" text-anchor="middle">M</text>
+    </g>
+  </g>
+
+  <!-- 5: P con mira como contador -->
+  <g transform="translate(30,510)">
+    <rect width="400" height="190" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">5</text>
+    <g transform="translate(200,110)">
+      <text x="-40" y="18" fill="#D50000" font-size="64" font-weight="bold" text-anchor="middle">P</text>
+      <circle cx="40" cy="0" r="26" fill="none" stroke="#D50000" stroke-width="4"/>
+      <line x1="40" y1="-26" x2="40" y2="-38" stroke="#D50000" stroke-width="3"/>
+      <line x1="40" y1="26" x2="40" y2="38" stroke="#D50000" stroke-width="3"/>
+      <line x1="14" y1="0" x2="2" y2="0" stroke="#D50000" stroke-width="3"/>
+      <line x1="66" y1="0" x2="78" y2="0" stroke="#D50000" stroke-width="3"/>
+    </g>
+  </g>
+
+  <!-- 6: Monograma PM con cruz arriba -->
+  <g transform="translate(470,510)">
+    <rect width="400" height="190" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">6</text>
+    <g transform="translate(200,110)">
+      <text x="-14" y="22" fill="#D50000" font-size="56" font-weight="bold" text-anchor="middle">P</text>
+      <text x="30" y="22" fill="#ffffff" font-size="56" font-weight="bold" text-anchor="middle">M</text>
+      <line x1="8" y1="-34" x2="8" y2="-52" stroke="#D50000" stroke-width="3"/>
+      <line x1="-2" y1="-42" x2="18" y2="-42" stroke="#D50000" stroke-width="3"/>
+    </g>
+  </g>
+
+  <!-- 7: Mira tipo objetivo con PM -->
+  <g transform="translate(30,720)">
+    <rect width="400" height="190" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">7</text>
+    <g transform="translate(200,110)">
+      <circle cx="0" cy="0" r="56" fill="none" stroke="#D50000" stroke-width="3" opacity="0.5"/>
+      <circle cx="0" cy="0" r="44" fill="none" stroke="#D50000" stroke-width="5"/>
+      <line x1="0" y1="-56" x2="0" y2="-38" stroke="#D50000" stroke-width="4"/>
+      <line x1="0" y1="38" x2="0" y2="56" stroke="#D50000" stroke-width="4"/>
+      <line x1="-56" y1="0" x2="-38" y2="0" stroke="#D50000" stroke-width="4"/>
+      <line x1="38" y1="0" x2="56" y2="0" stroke="#D50000" stroke-width="4"/>
+      <text x="-11" y="14" fill="#D50000" font-size="40" font-weight="bold" text-anchor="middle">P</text>
+      <text x="22" y="14" fill="#ffffff" font-size="40" font-weight="bold" text-anchor="middle">M</text>
+    </g>
+  </g>
+
+  <!-- 8: P y M superpuestos con punto de mira -->
+  <g transform="translate(470,720)">
+    <rect width="400" height="190" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">8</text>
+    <g transform="translate(200,110)">
+      <text x="-8" y="22" fill="#D50000" font-size="66" font-weight="bold" text-anchor="middle" opacity="0.55">P</text>
+      <text x="14" y="22" fill="#ffffff" font-size="66" font-weight="bold" text-anchor="middle">M</text>
+      <circle cx="34" cy="-30" r="8" fill="none" stroke="#D50000" stroke-width="3"/>
+      <line x1="34" y1="-22" x2="34" y2="-14" stroke="#D50000" stroke-width="2"/>
+    </g>
+  </g>
+
+  <!-- 9: Solo M con mira -->
+  <g transform="translate(30,930)">
+    <rect width="400" height="150" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">9</text>
+    <g transform="translate(200,80)">
+      <text x="0" y="22" fill="#ffffff" font-size="68" font-weight="bold" text-anchor="middle">M</text>
+      <circle cx="0" cy="-34" r="14" fill="none" stroke="#D50000" stroke-width="4"/>
+      <line x1="0" y1="-20" x2="0" y2="-8" stroke="#D50000" stroke-width="3"/>
+    </g>
+  </g>
+
+  <!-- 10: Mira minimal con letra P centrada -->
+  <g transform="translate(470,930)">
+    <rect width="400" height="150" rx="12" fill="#222"/>
+    <text x="14" y="28" fill="#D50000" font-size="22" font-weight="bold">10</text>
+    <g transform="translate(200,80)">
+      <line x1="-46" y1="0" x2="-30" y2="0" stroke="#D50000" stroke-width="4"/>
+      <line x1="30" y1="0" x2="46" y2="0" stroke="#D50000" stroke-width="4"/>
+      <line x1="0" y1="-46" x2="0" y2="-30" stroke="#D50000" stroke-width="4"/>
+      <line x1="0" y1="30" x2="0" y2="46" stroke="#D50000" stroke-width="4"/>
+      <text x="0" y="20" fill="#D50000" font-size="64" font-weight="bold" text-anchor="middle">P</text>
+    </g>
+  </g>
+
+  <text x="450" y="1090" fill="#888" font-size="12" text-anchor="middle">Decime el número elegido y lo aplico como favicon + logo.</text>
+</svg>

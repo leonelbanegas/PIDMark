@@ -1,0 +1,2389 @@
+* { box-sizing: border-box; }
+
+/* ============ BARRAS DE DESPLAZAMIENTO GLOBALES ============ */
+/* Misma estetica para TODAS las areas scrolleables del programa:
+   fina, redondeada, gris sobre transparente (tema oscuro) y gris claro
+   sobre transparente (tema claro). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4a4a4a transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: #6a6a6a; background-clip: padding-box; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+body.temaClaro * {
+  scrollbar-color: #c2c7ce transparent;
+}
+body.temaClaro *::-webkit-scrollbar-thumb { background: #c2c7ce; background-clip: padding-box; }
+body.temaClaro *::-webkit-scrollbar-thumb:hover { background: #a8aeb6; background-clip: padding-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: system-ui, sans-serif;
+  background: #121212;
+  color: #eee;
+}
+
+body { overflow: hidden; }
+
+.layout { display: flex; height: 100vh; width: 100vw; }
+
+.barraLateral {
+  position: fixed;
+  left: 0; top: 0;
+  height: 100vh;
+  width: 220px;
+  /* 80% opaca: deja pasar un 20% del fondo (translúcida) */
+  background: rgba(26, 26, 26, 0.8);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border-right: 1px solid rgba(42, 42, 42, 0.8);
+  display: flex; flex-direction: column;
+  z-index: 100;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5);
+}
+
+.barraLateral.abierta { transform: translateX(0); }
+
+/* Franja invisible a la izquierda para detectar el hover del mouse */
+.zonaHoverMenu {
+  position: fixed;
+  left: 0; top: 0;
+  width: 8px; height: 100vh;
+  z-index: 99;
+  background: transparent;
+}
+
+/* Botón hamburguesa fijo para abrir/cerrar manualmente */
+.btnHamburguesa {
+  position: fixed;
+  top: 12px; left: 12px;
+  z-index: 101;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(26, 26, 26, 0.9);
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, left 0.25s ease;
+}
+.btnHamburguesa:hover { background: #232323; }
+
+/* Cuando la barra está abierta, el botón se corre junto con ella */
+.barraLateral.abierta ~ .btnHamburguesa,
+body.menuAbierto .btnHamburguesa { left: 232px; }
+
+.logo { padding: 16px 20px 12px; border-bottom: 1px solid #2a2a2a; background: transparent; }
+.logoMarca {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 0 8px;
+  position: relative;
+}
+.logoMarca > .logoWrap {
+  grid-column: 2;
+  justify-self: center;
+  position: relative;
+}
+.logoMarca > .pieBy {
+  position: absolute;
+  right: -0.4em;
+  bottom: -0.15em;
+  z-index: 2;
+}
+.logoMarca > .logoPidSvg { grid-column: 2; justify-self: center; }
+/* Logo completo (P&ID Mark) en la barra lateral: 25% mas chico que en
+   los encabezados (97px * 0.75 = 72.75px). */
+.logoIcono { height: 54.5625px; width: auto; flex-shrink: 0; display: block; }
+
+/* El logo es SVG inline con colores propios (sin negro): no hace falta
+   recolorear por tema. Se le agrega una sombra suave para despegarlo
+   del fondo, sobre todo en tema oscuro. */
+.logoPidSvg {
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+}
+body.temaClaro .logoPidSvg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.28));
+}
+.logo h1 { font-size: 13px; margin: 0; color: #fff; letter-spacing: 0.3px; font-weight: 600; }
+/* Encabezado principal (dentro de .contenido): logo + marca + pantalla */
+/* Encabezado de marca dentro de la barra de acciones, alineado a la derecha */
+/* Cabecera de pantalla: 3 columnas (barras | logo centrado | switch) */
+/* Cabecera de pantalla (comun a las 4 pantallas):
+   [ hueco 52px (hamburguesa) ] [ acciones izq. (1fr) ] [ logo+nombre CENTRADO (auto) ] [ logo.svg der (1fr) ]
+   Las dos columnas laterales son 1fr, asi la central (auto) queda EXACTA al medio. */
+.cabeceraPantalla {
+  display: grid;
+  grid-template-columns: 52px 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+/* Bloque de acciones/titulo: a la izquierda del logo central. */
+.cabeceraIzquierda {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  grid-column: 2;
+  justify-self: start;
+  min-width: 0;
+}
+.cabeceraIzquierda .barraAcciones { margin-bottom: 0; }
+/* Botones dentro de cabeceraIzquierda (Edicion/Marcaciones): fila horizontal. */
+.cabeceraIzquierda .cabeceraDerecha {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+/* Encabezado (icono + nombre): columna central, centrado. */
+.cabeceraPantalla > .encabezadoPrincipal {
+  grid-column: 3;
+  justify-self: center;
+}
+/* Logo de la derecha: columna 4, pegado al borde derecho. */
+.cabeceraPantalla > .encabezadoLogoDer {
+  grid-column: 4;
+  justify-self: end;
+}
+
+/* Fila nombre + etiqueta dueño en la MISMA linea (horizontal).
+   El nombre puede recortarse con "..." pero la etiqueta (Propio / De ...)
+   debe verse SIEMPRE a la derecha: por eso el titulo es el que se encoge
+   (flex 0 1 auto) y la etiqueta no se comprime (flex 0 0 auto).
+   Si el nombre es corto, la etiqueta queda pegada a continuacion. */
+.barraTituloListado {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+.barraTituloListado > .tituloListado {
+  margin: 0;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.barraTituloListado > .etiqueta {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.etiquetaBuscar {
+  font-size: 14px;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+}
+.etiquetaBuscar .buscadorConX { margin-left: 8px; }
+body.temaClaro .etiquetaBuscar { color: #444; }
+
+/* Logo arriba y nombre de pantalla debajo, pero SEPARADOS: el nombre
+   no forma parte del logo. Se distinguen por el margen y la linea. */
+.encabezadoPrincipal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+}
+/* Logo completo (P&ID Mark): misma altura que el logo de Tecpetrol. */
+.encabezadoIcono { height: 72.75px; width: auto; flex-shrink: 0; display: block; }
+/* Si el SVG inline tambien lleva la clase del encabezado, mantiene el alto. */
+.encabezadoIcono.logoPidSvg { height: 72.75px; width: auto; }
+/* Nombre de pantalla: debajo del logo y separado de el (no es parte del logo). */
+.encabezadoTextos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid #2a2a2a;
+  min-width: 120px;
+  line-height: 1.05;
+}
+body.temaClaro .encabezadoTextos {
+  border-top-color: #dfe1e5;
+}
+.encabezadoMarca {
+  font-size: 34px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+.encabezadoPantalla {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #D50000;
+}
+
+/* ============ SWITCH DE TEMA (minimalista) ============ */
+.switchTema {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 20px;
+}
+.switchTemaIcono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a8f98;
+  transition: color 0.2s;
+}
+.switchTemaIcono svg { display: block; }
+.switchTemaPista {
+  position: relative;
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
+  background: #2f3237;
+  border: 1px solid #444;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+.switchTemaPerilla {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+/* Oscuro (por defecto): perilla a la derecha, luna resaltada */
+body:not(.temaClaro) .switchTemaPerilla { transform: translateX(18px); }
+body:not(.temaClaro) .switchTemaPista { background: #2f3237; border-color: #444; }
+body:not(.temaClaro) .switchTemaLuna { color: #e6e6e6; }
+body:not(.temaClaro) .switchTemaSol { color: #6b7078; }
+/* Claro: perilla a la izquierda, sol resaltado (mismo gris claro que la luna) */
+body.temaClaro .switchTemaPista { background: #cfd3d9; border-color: #b9bec6; }
+/* Sol bien visible en tema claro: trazo oscuro sobre fondo claro */
+body.temaClaro .switchTemaSol { color: #1c1c1c; }
+body.temaClaro .switchTemaLuna { color: #b0b6bf; }
+
+/* Fondo transparente: hereda la transparencia de la barra lateral,
+   asi la zona del usuario se ve igual que el resto de la ventana. */
+.seccionUsuario { padding: 16px 20px; border-bottom: 1px solid #2a2a2a; background: transparent; }
+
+.btnCerrarSesion {
+  width: 100%;
+  margin-top: 10px;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.usuarioNombre { font-size: 13px; color: #fff; font-weight: 600; margin-bottom: 2px; }
+.usuarioNivel { font-size: 11px; color: #888; }
+.usuarioNivel.nivelAdmin { color: #7dd87d; font-weight: 600; }
+.usuarioNivel.nivelSuperUsuario { color: #6fa8ff; font-weight: 600; }
+.usuarioNivel.nivelUsuario { color: #b0b0b0; }
+
+.menu { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; }
+.menuItem {
+  background: transparent; border: none; color: #bbb; text-align: left;
+  padding: 10px 14px; font-size: 14px; border-radius: 6px; cursor: pointer;
+  transition: background 0.15s, color 0.15s; width: 100%;
+}
+.menuItem:hover { background: #232323; color: #fff; }
+.menuItem.activo { background: #2962FF; color: #fff; font-weight: 600; }
+
+.pieBarra {
+  padding: 12px 20px;
+  border-top: 1px solid #2a2a2a;
+  font-size: 11px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Grupo derecho del pie: switch de tema + texto 'By BL'. */
+.pieDerecha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pieBy {
+  font-size: 11px;
+  color: #555;
+  white-space: nowrap;
+}
+body.temaClaro .pieBy { color: #8a8f98; }
+
+/* Logo a todo el ancho, ARRIBA de la linea del pie (fondo transparente).
+   Orden visual de abajo hacia arriba: version + switch, linea, logo. */
+.pieLogoBloque {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Mismos margenes que el resto de la barra:
+     laterales = .menu (10px) + .menuItem (14px) = 24px;
+     inferior  = .menu (12px) para no quedar pegado a la linea. */
+  padding: 0 24px 12px;
+  box-sizing: border-box;
+}
+.pieLogo {
+  width: auto;
+  max-width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: auto;
+  display: block;
+  background: transparent;
+}
+
+.contenido { flex: 1; overflow: auto; position: relative; height: 100vh; }
+.contenido main { padding: 24px 16px; max-width: 1800px; margin: 0 auto; }
+
+/* ============ TRANSICIÓN ENTRE PANTALLAS ============ */
+/* Por defecto las pantallas son visibles (opacity 1).
+   .pantallaOculta la baja a 0 para hacer el fade-out (200ms).
+   Al mostrar la nueva, se fuerza un fade-in de 300ms con .pantallaEntrando.
+   Total: 0.5s. */
+.contenido main { opacity: 1; }
+.contenido main.pantallaOculta {
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+.contenido main.pantallaEntrando {
+  animation: fadeInPantalla 0.3s ease-in;
+}
+@keyframes fadeInPantalla {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .contenido main.pantallaOculta { transition: none; }
+  .contenido main.pantallaEntrando { animation: none; }
+}
+.contenido main.pantallaCompleta {
+  max-width: none; padding: 0; margin: 0; height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+/* Nombre de P&ID y revision se muestran siempre en MAYUSCULAS. */
+.entradaMayusculas { text-transform: uppercase; }
+
+.barraAcciones { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.filtro { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 14px; color: #ccc; }
+.filtro label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.usuarioActivoListados { flex-basis: 100%; font-size: 12px; color: #9aa0a6; margin-bottom: -4px; }
+.usuarioActivoNombre { color: #fff; font-weight: 600; }
+
+button {
+  font-size: 14px; padding: 8px 14px; border-radius: 6px;
+  border: 1px solid #444; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btnPrimario { background: #2962FF; border-color: #2962FF; color: #fff; }
+.btnPrimario:hover:not(:disabled) { background: #1e4fd6; }
+.btnSecundario { background: #2a2a2a; color: #eee; }
+.btnSecundario:hover:not(:disabled) { background: #383838; }
+.btnPeligro { background: #b71c1c; border-color: #b71c1c; color: #fff; }
+.btnPeligro:hover:not(:disabled) { background: #8e1414; }
+.btnChico { font-size: 12px; padding: 4px 8px; }
+
+/* ============ BUSCADORES CON BOTÓN ✕ ============ */
+
+.buscadorConX {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.inputBusqueda {
+  padding: 6px 32px 6px 10px;
+  background: #121212;
+  border: 1px solid #444;
+  color: #eee;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 300px;
+}
+.inputBusqueda:focus {
+  outline: none;
+  border-color: #2962FF;
+}
+
+.btnLimpiarBusqueda {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.btnLimpiarBusqueda:hover {
+  background: #2a2a2a;
+  color: #fff;
+}
+.btnLimpiarBusqueda.visible {
+  display: inline-flex;
+}
+
+/* ============ TÍTULO + DESCRIPCIÓN DEL LISTADO ============ */
+
+.contenedorTituloListado {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.descripcionListado {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 2px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.descripcionListado:hover {
+  background: #232323;
+}
+.descripcionListado.vacia {
+  color: #666;
+  font-style: italic;
+  cursor: pointer;
+}
+
+/* ============ TABLAS ============ */
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  background: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+  table-layout: fixed;
+}
+
+.tabla th, .tabla td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabla th.colCentrada, .tabla td.colCentrada { text-align: center; }
+
+/* ============ COLUMNA 'HIPERVINCULOS' (tabla P&ID global) ============ */
+/* El icono de cadena va en el ENCABEZADO; la celda muestra SOLO el numero. */
+.thHipervinculos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.thHipervinculos .iconoHipervinculo {
+  display: block;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.celdaHipervinculos {
+  color: #7fb0ff;
+  font-weight: 600;
+  font-size: 13px;
+}
+.iconoHipervinculo {
+  display: block;
+  flex-shrink: 0;
+}
+.sinHipervinculos {
+  color: #5a5a5a;
+}
+body.temaClaro .celdaHipervinculos { color: #2962FF; }
+body.temaClaro .sinHipervinculos { color: #b9bec6; }
+
+/* ============ ARBOL DE P&ID (revisiones viejas) ============ */
+/* La revision mas nueva se ve alineada normalmente; las anteriores se
+   muestran un poco a la derecha y con una flecha, simulando que cuelgan
+   de la mas nueva. Solo aplica a la CELDA DEL NOMBRE. */
+.celdaNombrePid { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.celdaNombrePid.celdaNombrePidHija {
+  padding-left: 22px;
+  position: relative;
+}
+.flechaArbolPid {
+  display: inline-block;
+  width: 16px;
+  margin-right: 4px;
+  color: #777;
+  font-weight: normal;
+}
+body.temaClaro .flechaArbolPid { color: #9aa0a6; }
+
+/* Celda de nombre en la tabla de listados: el nombre se recorta con "..."
+   pero la etiqueta Propio / De ... queda siempre visible a la derecha. */
+.celdaNombreListado {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.celdaNombreListado > .nombreListadoTexto {
+  /* Solo toma el ancho que necesita: si el nombre es corto, la etiqueta
+     queda pegada a continuacion; si es largo, se recorta con "...". */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.celdaNombreListado > .etiqueta {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.tabla thead th {
+  background: #232323;
+  color: #bbb;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  user-select: none;
+}
+
+.tabla thead th.columnaNumero {
+  width: 1% !important;
+  min-width: 40px;
+  white-space: nowrap;
+}
+
+.tabla tbody tr:hover { background: #232323; }
+
+.tabla tbody tr.filaAbrible { cursor: pointer; }
+
+.resizerColumna {
+  position: absolute; top: 0; right: 0;
+  width: 6px; height: 100%;
+  cursor: col-resize; user-select: none; z-index: 2;
+  background: transparent; transition: background 0.15s;
+}
+.resizerColumna:hover,
+.resizerColumna.arrastrando { background: rgba(41, 98, 255, 0.7); }
+
+body.redimensionandoColumna { cursor: col-resize !important; user-select: none; }
+body.redimensionandoColumna * { cursor: col-resize !important; user-select: none !important; }
+
+.tabla.tablaSoloLectura tbody,
+.tabla.tablaSoloLectura tbody tr,
+.tabla.tablaSoloLectura tbody td,
+.tabla.tablaSoloLectura tbody th {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.tabla.tablaSoloLectura tbody tr {
+  cursor: default;
+}
+
+/* ============ BOTÓN ⋮ DE ACCIONES ============ */
+
+.btnMenu {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #bbb;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btnMenu:hover {
+  background: #2a2a2a;
+  color: #fff;
+  border-color: #3a3a3a;
+}
+
+.celdaAccionesCentrada {
+  text-align: center;
+  overflow: visible;
+}
+
+/* ============ MENÚ CONTEXTUAL ============ */
+
+.menuContextual {
+  position: fixed;
+  z-index: 500;
+  background: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 170px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  color: #eee;
+  user-select: none;
+}
+.menuContextual .menuOpcion {
+  padding: 7px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.menuContextual .menuOpcion:hover {
+  background: #2962FF;
+  color: #fff;
+}
+.menuContextual .menuOpcion.deshabilitada {
+  color: #666;
+  cursor: not-allowed;
+}
+.menuContextual .menuOpcion.deshabilitada:hover {
+  background: transparent;
+  color: #666;
+}
+.menuContextual .menuSeparador {
+  height: 1px;
+  background: #2f2f2f;
+  margin: 4px 0;
+}
+.menuContextual .menuOpcion.peligro {
+  color: #e07070;
+}
+.menuContextual .menuOpcion.peligro:hover {
+  background: #b71c1c;
+  color: #fff;
+}
+
+/* ============ ETIQUETAS DE ESTADO ============ */
+
+.etiqueta {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: #333;
+  color: #ccc;
+}
+
+.etiquetaPropia { background: #1b3a1b; color: #7dd87d; }
+.etiquetaOtro   { background: #3a2a1b; color: #e0b070; }
+.etiquetaSuperUsuario { background: #1b2a3a; color: #6fa8ff; }
+
+.revUltima { color: #7dd87d; font-weight: 600; }
+.revDesactualizada { color: #e07070; font-weight: 600; }
+
+.etiqueta.etiquetaDesactualizado {
+  background: #3a1b1b;
+  color: #e07070;
+}
+body.temaClaro .etiqueta.etiquetaDesactualizado {
+  background: #fde8e8;
+  color: #b71c1c;
+}
+body.temaClaro .revDesactualizada { color: #b71c1c; }
+
+.etiqueta.etiquetaSoloLectura {
+  background: #3a1b1b;
+  color: #ff8a80;
+  border: 1px solid #b71c1c;
+  margin-left: 8px;
+  font-weight: 600;
+}
+body.temaClaro .etiqueta.etiquetaSoloLectura {
+  background: #fde8e8;
+  color: #b71c1c;
+  border-color: #e57373;
+}
+
+.chipHoja {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: #2a2a2a;
+  color: #bbb;
+  border: 1px solid #3a3a3a;
+  white-space: nowrap;
+}
+
+/* ============ RESTO ============ */
+
+.mensajeVacio { padding: 40px; text-align: center; color: #888; background: #1a1a1a; border-radius: 8px; font-size: 14px; }
+
+.modalFondo {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+  /* Cursor visible SIEMPRE sobre el modal. Si venimos del visor (donde el
+     lienzo usa cursor:none), al abrir el modal el puntero tiene que verse. */
+  cursor: default;
+}
+.modalCaja {
+  background: #1e1e1e; border: 1px solid #333; border-radius: 10px;
+  padding: 24px; min-width: 480px; max-width: 620px; max-height: 90vh; overflow-y: auto;
+  cursor: default;
+}
+
+/* Modal "Cambiar dueño": un poco mas alto y sin scroll propio, para que la
+   unica barra visible sea la del dropdown de sugerencias. */
+.modalCaja.modalCambiarDuenio {
+  min-height: 340px;
+  overflow-y: visible;
+}
+body.temaClaro .modalCaja.modalCambiarDuenio { overflow-y: visible; }
+.modalCaja.modalCajaGrande {
+  max-height: 90vh;
+  height: 90vh;
+  width: 560px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============ MODAL DE CARGA DE P&ID (2 columnas) ============ */
+.modalCaja.modalCargaPID {
+  width: 1200px;
+  max-width: 96vw;
+  height: 90vh;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modalCaja.modalCargaPID #modalCuerpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.cargaPIDGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+.cargaPIDPrevia {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+  /* El cursor lo maneja pids.js (lupa simple / mano de arrastre). */
+}
+body.temaClaro .cargaPIDPrevia { background: #ffffff; border-color: #cfd3d9; }
+.cargaPIDPrevia canvas {
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: 0 0;
+  image-rendering: auto;
+}
+.cargaPIDPreviaVacia {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  font-size: 13px;
+  color: #777;
+  line-height: 1.5;
+}
+.cargaPIDZoomBar {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(20, 20, 20, 0.85);
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 4px 6px;
+  z-index: 2;
+}
+.cargaPIDZoomBar button {
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+.cargaPIDZoomBar .zoomValor {
+  font-size: 11px;
+  color: #ccc;
+  min-width: 42px;
+  text-align: center;
+}
+.cargaPIDCampos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.cargaPIDCampos label { margin-bottom: 0; }
+
+/* Hoja: página [de] total */
+.filaHojaPID {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.filaHojaPID input[type="number"] {
+  width: 70px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: #121212;
+  border: 1px solid #444;
+  color: #eee;
+  border-radius: 6px;
+  margin-top: 0;
+}
+.filaHojaPID .textoDeHoja {
+  font-size: 13px;
+  color: #aaa;
+}
+body.temaClaro .filaHojaPID input[type="number"] {
+  background: #f7f8fa;
+  border-color: #cfd3d9;
+  color: #1c1c1c;
+}
+.filaHojaPID input[type="number"]:focus {
+  outline: none;
+  border-color: #2962FF;
+  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.35);
+}
+body.temaClaro .filaHojaPID .textoDeHoja { color: #444; }
+.modalCaja.modalCajaGrande #modalCuerpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalCaja h2 { margin-top: 0; font-size: 18px; }
+.modalCaja input[type="text"] {
+  width: 100%; padding: 8px 10px; font-size: 14px;
+  background: #121212; border: 1px solid #444; color: #eee; border-radius: 6px;
+}
+.modalBotones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+.aviso {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #2962FF; color: #fff; padding: 12px 20px;
+  border-radius: 6px; font-size: 14px; z-index: 200;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ============ OVERLAY DE PROGRESO (exportaciones) ============ */
+/* Bloquea toda la UI: fondo oscuro a pantalla completa. */
+.progresoOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: wait;
+}
+body.temaClaro .progresoOverlay {
+  background: rgba(15, 23, 42, 0.45);
+}
+.progresoCaja {
+  background: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  padding: 24px 28px;
+  min-width: 380px;
+  max-width: 520px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+body.temaClaro .progresoCaja {
+  background: #ffffff;
+  border-color: #dfe1e5;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+.progresoTitulo {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 14px;
+  text-align: center;
+}
+body.temaClaro .progresoTitulo { color: #1c1c1c; }
+.progresoPista {
+  position: relative;
+  height: 10px;
+  background: #2a2a2a;
+  border-radius: 5px;
+  overflow: hidden;
+}
+body.temaClaro .progresoPista { background: #e5e7eb; }
+.progresoBarra {
+  height: 100%;
+  width: 0%;
+  background: #2962FF;
+  border-radius: 5px;
+  transition: width 0.2s ease;
+}
+/* Modo indeterminado: barrido animado cuando no hay porcentaje real. */
+.progresoBarra.indeterminada {
+  animation: barridoProgreso 1.2s ease-in-out infinite;
+  transition: none;
+}
+@keyframes barridoProgreso {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.progresoTexto {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  min-height: 16px;
+}
+body.temaClaro .progresoTexto { color: #6b7280; }
+/* Mientras hay progreso, el body no scrollea. */
+body.conProgreso { overflow: hidden; }
+.avisoError { background: #b71c1c; }
+
+/* El nombre del listado puede ocupar hasta 2 renglones. Si no entra,
+   JS le baja la clase .largo / .muyLargo para achicar la letra. */
+.tituloListado {
+  margin: 0;
+  font-size: 18px;
+  color: #fff;
+  flex: 0 0 auto;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+}
+.tituloListado.largo { font-size: 15px; }
+.tituloListado.muyLargo { font-size: 13px; }
+.tituloListado .tituloListadoPrefijo {
+  color: #9aa0a6;
+  font-weight: 400;
+}
+body.temaClaro .tituloListado .tituloListadoPrefijo { color: #6b7280; }
+.ayuda { font-size: 12px; color: #888; margin-left: 8px; }
+
+/* ================================================================
+   Pestañas de la pantalla del listado abierto
+   (Marcaciones | P&ID asignados | Líneas)
+   Estilo "lengüita de carpeta": 3 pestañas del mismo ancho,
+   alineadas a la izquierda, la activa se une al contenido.
+   ================================================================ */
+.pestanasListado {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 0 0 -1px 16px;   /* -1px para pisar el borde inferior */
+  width: max-content;
+  max-width: calc(100% - 32px);
+  align-self: flex-start;
+  position: relative;
+  z-index: 2;
+}
+
+.pestanasListado .pestana {
+  position: relative;
+  flex: 0 0 auto;
+  width: 150px;            /* mismo ancho para las 3 */
+  text-align: center;
+  background: #232323;     /* inactiva: fondo apagado */
+  border: 1px solid #333;
+  border-bottom: none;
+  color: #9a9a9a;
+  font-size: 13px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  margin-right: -1px;      /* solapan bordes entre sí */
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pestanasListado .pestana:hover:not(.activa) {
+  background: #2a2a2a;
+  color: #ccc;
+}
+
+/* Activa: se "eleva", MISMO fondo que el contenido y sin borde inferior,
+   para que se vea como una sola lengüeta con la parte de abajo. */
+.pestanasListado .pestana.activa {
+  background: var(--fondoContenidoListado, #121212);
+  color: #fff;
+  font-weight: 600;
+  border-color: #2962FF;
+  border-bottom: 2px solid var(--fondoContenidoListado, #121212); /* tapa el borde */
+  z-index: 3;
+  padding-bottom: 9px;              /* compensa el borde inferior */
+}
+
+.pestanasListado .pestana:focus-visible {
+  outline: 2px solid #2962FF;
+  outline-offset: -3px;
+}
+
+/* Contenedor del contenido: mismo fondo que la pestaña activa (se "une"). */
+.contenidoPestana {
+  padding: 16px 0 0;
+  border-top: 1px solid #333;
+  position: relative;
+  z-index: 1;
+  background: var(--fondoContenidoListado, #121212);
+}
+
+/* Cuadradito de color en la tabla de Líneas (pestaña del listado). */
+.muestraColorLinea {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+body.temaClaro .muestraColorLinea {
+  border-color: rgba(0, 0, 0, 0.25);
+}
+
+/* Tema claro */
+body.temaClaro .pestanasListado .pestana {
+  background: #e9ebef;
+  border-color: #d0d0d0;
+  color: #6b7280;
+}
+body.temaClaro .pestanasListado .pestana:hover:not(.activa) {
+  background: #eef0f3;
+  color: #374151;
+}
+body.temaClaro .pestanasListado .pestana.activa {
+  background: #ffffff;
+  color: #111;
+  border-color: #2962FF;
+  border-bottom-color: #ffffff;
+}
+body.temaClaro .contenidoPestana {
+  border-top-color: #d0d0d0;
+  background: #ffffff;
+}
+
+.filaArrastrable { cursor: move; }
+.filaArrastrable.arrastrando { opacity: 0.4; background: #2a2a2a; }
+.filaArrastrable.sobreArriba { box-shadow: inset 0 2px 0 0 #2962FF; }
+.filaArrastrable.sobreAbajo { box-shadow: inset 0 -2px 0 0 #2962FF; }
+.agarre { color: #555; text-align: center; user-select: none; font-size: 14px; padding: 0 !important; }
+.agarre:hover { color: #888; }
+
+.modalCaja label { display: block; margin-bottom: 12px; font-size: 13px; color: #ccc; }
+
+/* Dropdown de sugerencias del input "Nuevo dueño" (reemplaza al datalist
+   nativo, que el navegador dibuja centrado y con margen). Se ancla debajo
+   del input, alineado a la izquierda y sin espacio intermedio. */
+.contenedorSugerenciasDuenio { display: block; position: relative; }
+.sugerenciasDuenio {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin: 0;
+  padding: 0;
+  background: #121212;
+  border: 1px solid #444;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  z-index: 20;
+  text-align: left;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+  /* La barra vive SOLO acá (scroll de la lista), nunca en el modal. */
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #4a4a4a transparent;
+}
+.sugerenciasDuenio::-webkit-scrollbar { width: 8px; }
+.sugerenciasDuenio::-webkit-scrollbar-track { background: transparent; }
+.sugerenciasDuenio::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.sugerenciasDuenio::-webkit-scrollbar-thumb:hover { background: #6a6a6a; background-clip: padding-box; }
+.sugerenciasDuenio .itemSugerenciaDuenio {
+  padding: 7px 10px;
+  font-size: 14px;
+  color: #eee;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sugerenciasDuenio .itemSugerenciaDuenio:hover,
+.sugerenciasDuenio .itemSugerenciaDuenio.resaltada {
+  background: #2962FF;
+  color: #fff;
+}
+body.temaClaro .sugerenciasDuenio {
+  background: #f7f8fa;
+  border-color: #cfd3d9;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  scrollbar-color: #c2c7ce transparent;
+}
+body.temaClaro .sugerenciasDuenio::-webkit-scrollbar-thumb { background: #c2c7ce; background-clip: padding-box; }
+body.temaClaro .sugerenciasDuenio::-webkit-scrollbar-thumb:hover { background: #a8aeb6; background-clip: padding-box; }
+body.temaClaro .sugerenciasDuenio .itemSugerenciaDuenio { color: #1c1c1c; }
+body.temaClaro .sugerenciasDuenio .itemSugerenciaDuenio:hover,
+body.temaClaro .sugerenciasDuenio .itemSugerenciaDuenio.resaltada {
+  background: #2962FF;
+  color: #fff;
+}
+
+.modalCaja input[type="text"],
+.modalCaja input[type="number"],
+.modalCaja select {
+  width: 100%; padding: 8px 10px; font-size: 14px;
+  background: #121212; border: 1px solid #444; color: #eee;
+  border-radius: 6px; margin-top: 4px;
+}
+.modalCaja .filaCampos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Foco limpio: se quita el outline nativo del navegador (que en inputs con
+   border-radius se ve encimado contra el borde izquierdo) y se marca el
+   foco con el color de acento. */
+.modalCaja input[type="text"]:focus,
+.modalCaja input[type="number"]:focus,
+.modalCaja select:focus {
+  outline: none;
+  border-color: #2962FF;
+  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.35);
+}
+
+.modalCaja textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 10px;
+  font-size: 14px;
+  background: #121212;
+  border: 1px solid #444;
+  color: #eee;
+  border-radius: 6px;
+  margin-top: 4px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.4;
+}
+.modalCaja textarea:focus {
+  outline: none;
+  border-color: #2962FF;
+}
+
+.contadorCaracteres {
+  text-align: right;
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+.contadorCaracteres .alLimite {
+  color: #e07070;
+  font-weight: 600;
+}
+
+.etiquetaEstadoAbierto { background: #1b3a1b; color: #7dd87d; }
+.etiquetaEstadoCerrado { background: #3a1b1b; color: #e07070; }
+.etiquetaEstadoOtro    { background: #1b1b3a; color: #8080e0; }
+
+.listaSeleccionPids {
+  max-height: 220px; overflow-y: auto; border: 1px solid #333;
+  border-radius: 6px; padding: 4px; background: #141414; margin-top: 4px;
+}
+.modalCaja.modalCajaGrande .listaSeleccionPids {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.itemSeleccionPid {
+  display: flex; align-items: center; gap: 8px; padding: 4px 6px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; color: #ccc;
+}
+.itemSeleccionPid:hover { background: #232323; }
+.itemSeleccionPid input[type="checkbox"] { cursor: pointer; width: auto; margin: 0; }
+
+.itemSeleccionPidConVer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 0 6px;
+  min-height: 22px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.itemSeleccionPidConVer:hover {
+  background: #232323;
+}
+.itemSeleccionPidConVer .itemSeleccionPid {
+  flex: 1;
+  padding: 0;
+  margin: 0;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  border-radius: 0;
+  background: transparent;
+  line-height: 1;
+}
+.itemSeleccionPidConVer .itemSeleccionPid > span {
+  line-height: 1;
+}
+.itemSeleccionPidConVer .itemSeleccionPid:hover {
+  background: transparent;
+}
+.btnVerPid {
+  font-size: 11px;
+  padding: 0 8px;
+  height: 20px;
+  flex-shrink: 0;
+  background: #2a2a2a;
+  color: #eee;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.btnVerPid:hover {
+  background: #383838;
+}
+
+.buscadorPids {
+  margin-bottom: 8px;
+}
+.buscadorPids .buscadorConX {
+  width: 100%;
+}
+.buscadorPids .inputBusqueda {
+  width: 100%;
+  padding: 8px 32px 8px 10px;
+  font-size: 13px;
+}
+.buscadorPids .inputBusqueda:focus {
+  outline: none;
+  border-color: #2962FF;
+}
+
+/* ============ VISTA PREVIA A PANTALLA COMPLETA ============ */
+
+.vistaPreviaFondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+.vistaPreviaImagen {
+  max-width: 96vw;
+  max-height: 96vh;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.8);
+}
+.vistaPreviaMensaje {
+  color: #e07070;
+  font-size: 16px;
+  text-align: center;
+  padding: 40px;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 10px;
+}
+
+/* ============ BARRA DE LOS VISORES (CALIBRACION Y MARCADO) ============ */
+
+.barraCalibracion {
+  display: flex; align-items: center; gap: 12px;
+  /* Hueco a la izquierda para la hamburguesa fija (top:12 left:12, 36x36):
+     asi el boton de volver no queda debajo del boton de menu. */
+  padding: 8px 16px 8px 64px; background: #1e1e1e;
+  border-bottom: 1px solid #333; flex-wrap: wrap; flex-shrink: 0;
+}
+.tituloCalibracion {
+  flex: 1; font-size: 14px; color: #ccc;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: flex; align-items: center; gap: 12px;
+  min-width: 0;
+}
+.tituloCalibracion strong { color: #fff; }
+
+.etiquetaMarca {
+  background: #2962FF; color: #fff; padding: 2px 10px;
+  border-radius: 10px; font-size: 12px;
+}
+
+.botonesCal { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.botonesCal button.activo {
+  background: #2962FF;
+  border-color: #2962FF;
+  color: #fff;
+}
+.botonesCal button.marcado {
+  background: #1b5e20;
+  border-color: #1b5e20;
+  color: #fff;
+}
+.botonesCal button.marcado.activo {
+  background: #2962FF;
+  border-color: #2962FF;
+}
+
+.zoomLabel {
+  font-size: 12px;
+  color: #bbb;
+  white-space: nowrap;
+}
+
+.separadorBarra {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: #3a3a3a;
+  margin: 0 2px;
+  vertical-align: middle;
+}
+
+.grupoLupa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.grupoLupa .iconoLupa {
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.85;
+}
+.grupoLupa #valorLupaZoom,
+.grupoLupa #valorLupaZoomMarc {
+  min-width: 32px; text-align: center; color: #2962FF;
+  font-weight: 600; font-size: 12px;
+}
+
+/* ============ VISOR CON PANEL DERECHO ============ */
+
+.visorConPanel { flex: 1; display: flex; min-height: 0; }
+
+.divisorPanel {
+  width: 6px; flex-shrink: 0; background: #2a2a2a;
+  cursor: col-resize; transition: background 0.15s; position: relative;
+}
+.divisorPanel:hover, .divisorPanel.arrastrando { background: #2962FF; }
+.divisorPanel::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%); width: 2px; height: 30px;
+  background: #555; border-radius: 1px;
+}
+.divisorPanel:hover::after, .divisorPanel.arrastrando::after { background: #fff; }
+
+.panelDerecho {
+  width: 192px; flex-shrink: 0; background: #171717;
+  border-left: 1px solid #2a2a2a; padding: 16px 16px;
+  overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
+}
+
+.panelSeccion { border-bottom: 1px solid #2a2a2a; padding-bottom: 12px; }
+.panelSeccion:last-child { border-bottom: none; }
+
+.panelTitulo {
+  font-size: 11px; text-transform: uppercase; color: #777;
+  letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;
+}
+
+.estadoPunto { display: block; font-size: 12px; color: #bbb; margin-bottom: 4px; line-height: 1.4; }
+.estadoPunto.ok { color: #7dd87d; }
+
+.campoPanel {
+  display: block;
+  font-size: 11px;
+  color: #aaa;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.campoPanel input[type="text"],
+.campoPanel input[type="number"],
+.campoPanel select {
+  width: 100%;
+  padding: 4px 6px;
+  margin-top: 3px;
+  font-size: 12px;
+  background: #121212;
+  border: 1px solid #3a3a3a;
+  color: #eee;
+  border-radius: 4px;
+}
+.campoPanel input[type="text"]:focus,
+.campoPanel input[type="number"]:focus,
+.campoPanel select:focus {
+  outline: none;
+  border-color: #2962FF;
+}
+.campoPanel input:disabled,
+.campoPanel select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #0d0d0d;
+  border-color: #2a2a2a;
+  color: #888;
+}
+.campoPanel:has(input:disabled),
+.campoPanel:has(select:disabled) {
+  opacity: 0.7;
+}
+
+.campoPanel.campoCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.campoPanel.campoCheckbox input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #2962FF;
+}
+.campoPanel.campoCheckbox input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+.campoPanel.campoCheckbox span {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.panelAyuda .lineaAyuda { font-size: 11px; color: #666; margin-bottom: 4px; line-height: 1.4; }
+
+/* ============ CANVAS ============ */
+
+.lienzoCal {
+  flex: 1; position: relative; overflow: hidden;
+  background: #0a0a0a; cursor: default; min-width: 0;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.lienzoCal.modoMarcar { cursor: crosshair; }
+
+#canvasCal, #canvasMarc {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 0 0;
+  /* Suavizado al escalar: al reducir (zoom "Ajustar") preserva las líneas
+     finas del plano; con "pixelated" se perdían. */
+  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
+  user-select: none;
+  pointer-events: none;
+}
+
+.capaMarcadoresCal {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+/* ===== Sello DESACTUALIZADO (P&ID abierto en el visor de marcado) =====
+   Se dibuja centrado sobre la hoja, en diagonal, como un sello. Ocupa 1/3
+   de la hoja (sobre la diagonal). Rojo con 75% de transparencia (queda al
+   25% de opacidad). El borde tiene el mismo grosor que el trazo de las
+   letras. La capa se escala con el zoom igual que las demas capas. */
+.capaSelloDesactualizado {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Bloque rotado y centrado que contiene el recuadro DESACTUALIZADO y, debajo,
+   el texto de la revision nueva (fuera del recuadro). */
+.selloDesactualizadoBloque {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.selloDesactualizado {
+  display: block;
+  color: rgba(213, 0, 0, 0.25);
+  border: 0.06em solid rgba(213, 0, 0, 0.25);
+  border-radius: 0.12em;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  box-sizing: border-box;
+  padding: 0.08em 0.14em;
+  white-space: nowrap;
+}
+
+/* Revision nueva, DEBAJO del recuadro: misma tipografia/color pero al 50%
+   del tamano del titulo. */
+.selloDesactualizadoBloque .selloRev {
+  display: block;
+  margin-top: 0.12em;
+  font-size: 0.5em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: rgba(213, 0, 0, 0.25);
+  text-align: center;
+}
+.selloDesactualizadoBloque .selloRev:empty { display: none; }
+
+.puntoCal {
+  position: absolute; width: 22px; height: 22px;
+  border-radius: 50%; border: 3px solid #fff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.7);
+}
+.puntoCal.p00 { background: #00C853; }
+.puntoCal.p100 { background: #D50000; }
+
+.etiquetaPuntoCal {
+  position: absolute; background: rgba(0, 0, 0, 0.75);
+  color: #fff; padding: 2px 6px; font-size: 11px;
+  border-radius: 4px; white-space: nowrap;
+  transform: translate(-50%, -140%);
+  pointer-events: none;
+}
+
+.zonaCalibrada {
+  position: absolute;
+  border: 2px dashed rgba(41, 98, 255, 0.7);
+  background: rgba(41, 98, 255, 0.06);
+  pointer-events: none;
+}
+
+.cruzVirtual {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  z-index: 30;
+  transform: translate(-50%, -50%);
+}
+.cruzVirtual::before,
+.cruzVirtual::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 235, 59, 0.95);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+}
+.cruzVirtual::before {
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+.cruzVirtual::after {
+  top: 50%;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  transform: translateY(-50%);
+}
+.cruzVirtual.chica {
+  width: 12px;
+  height: 12px;
+}
+
+.marcaMarc {
+  position: absolute; border-radius: 50%;
+  border-style: solid; border-width: 4px;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  box-sizing: border-box; z-index: 3;
+}
+.marcaMarc.seleccionada { box-shadow: 0 0 0 3px #FFEB3B, 0 0 12px rgba(0, 0, 0, 0.7); }
+
+.tiradorMarca {
+  position: absolute; width: 14px; height: 14px;
+  background: #FFEB3B; border: 2px solid #000;
+  border-radius: 50%; cursor: nwse-resize;
+  z-index: 12; pointer-events: auto;
+}
+
+.tiradorEtiqueta {
+  position: absolute; width: 12px; height: 12px;
+  background: #4FC3F7; border: 2px solid #000;
+  border-radius: 50%; cursor: move;
+  z-index: 12; pointer-events: auto;
+}
+
+.etiquetaMarcaTag {
+  position: absolute; background: rgba(0, 0, 0, 0.55);
+  color: #fff; white-space: nowrap;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  box-sizing: border-box;
+  border-radius: 10px; z-index: 4;
+}
+
+.lineaConectora { position: absolute; pointer-events: none; z-index: 2; }
+
+.listaMarcas { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
+.itemListaMarca {
+  padding: 6px 8px; background: #232323; border-radius: 4px;
+  font-size: 12px; color: #ccc; cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.itemListaMarca:hover { background: #2a2a2a; }
+.itemListaMarca.seleccionada {
+  background: #2a3a5a; border-left-color: #2962FF; color: #fff;
+}
+
+.lupa {
+  position: fixed; width: 180px; height: 180px;
+  border: 2px solid #2962FF; border-radius: 50%;
+  overflow: hidden; pointer-events: none; z-index: 50;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7); background: #000;
+}
+.lupa canvas {
+  display: block; width: 100%; height: 100%;
+  image-rendering: pixelated;
+}
+
+body.redimensionando { user-select: none; cursor: col-resize; }
+
+.lienzoCal.cursorOculto { cursor: none; }
+
+.checkCsoCsc {
+  accent-color: #2962FF;
+  cursor: default;
+  width: 14px;
+  height: 14px;
+  margin: 0 auto;
+  display: block;
+  pointer-events: none;
+}
+
+.panelDerecho input,
+.panelDerecho textarea,
+.modalCaja input,
+.modalCaja textarea,
+.modalCaja select {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ============ SELECTOR DE USUARIO SIMULADO ============ */
+
+.cajaSimulacion {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #333;
+}
+
+.etiquetaSimulacion {
+  display: block;
+  font-size: 10px;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.selectorUsuario {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #121212;
+  border: 1px solid #3a3a3a;
+  color: #eee;
+  border-radius: 4px;
+}
+.selectorUsuario:focus {
+  outline: none;
+  border-color: #2962FF;
+}
+
+/* ============ CHECKBOXES DE CAPAS (marcas / líneas) ============ */
+
+.chkCapa {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #ccc;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.chkCapa input[type="checkbox"] {
+  accent-color: #2962FF;
+  cursor: pointer;
+  margin: 0;
+}
+
+/* ============ PESTAÑAS DEL PANEL DERECHO (marcas / líneas) ============ */
+
+.pestanasPanel {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #2a2a2a;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.pestana {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #888;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.pestana:hover { color: #ccc; }
+.pestana.activa {
+  color: #fff;
+  border-bottom-color: #2962FF;
+}
+
+/* ============ PALETA DE COLORES DE LÍNEAS ============ */
+
+.paletaColores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.colorLinea {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background: #1e1e1e;
+  transition: background 0.15s, border-color 0.15s;
+  min-width: 0;
+}
+.colorLinea:hover { background: #2a2a2a; }
+.colorLinea.activo {
+  border-color: #fff;
+  background: #2a2a2a;
+}
+
+.colorLinea .muestraColor {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  opacity: 0.7; /* Misma opacidad que las líneas en el canvas por defecto */
+}
+
+.colorLinea .nombreColor {
+  font-size: 10px;
+  color: #ccc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.colorLinea .btnRenombrarColor {
+  background: transparent;
+  border: none;
+  color: #666;
+  padding: 0 2px;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.colorLinea .btnRenombrarColor:hover { color: #fff; background: #444; }
+
+/* ============ LISTA DE LÍNEAS ============ */
+
+.listaLineas {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.itemListaLinea {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #232323;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #ccc;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.itemListaLinea:hover { background: #2a2a2a; }
+.itemListaLinea.seleccionada {
+  background: #2a3a5a;
+  border-left-color: #2962FF;
+  color: #fff;
+}
+.itemListaLinea .muestraLinea {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  opacity: 0.7; /* Misma opacidad que las líneas en el canvas por defecto */
+}
+
+/* Clase para el contenedor de los dos inputs lado a lado */
+.filaCampos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ============================================================ */
+/* Leyenda de líneas de proceso (overlay movible)               */
+/* ============================================================ */
+.leyendaLineas {
+  position: absolute;
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #fff;
+  max-width: 220px;
+  transition: opacity 0.15s;
+}
+
+.leyendaLineas.arrastrando {
+  cursor: grabbing;
+  opacity: 0.9;
+}
+
+.leyendaLineas .leyendaItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.leyendaLineas .leyendaColor {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.leyendaLineas .leyendaTexto {
+  color: #fff;
+  font-size: 12px;
+}
+
+
+/* ================================================================
+   Lista de líneas: botón "×" para borrar
+   ================================================================ */
+/* Se agrega a la derecha de cada fila. La fila pasa a flex para
+   que el botón quede alineado al extremo derecho. */
+
+.itemListaLinea {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.itemListaLinea .textoLinea {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemListaLinea .btnBorrarLinea {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  line-height: 16px;
+  text-align: center;
+  padding: 0;
+  border: 1px solid #555;
+  border-radius: 3px;
+  background: #2a2a2a;
+  color: #ccc;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.itemListaLinea .btnBorrarLinea:hover {
+  background: #E53935;
+  border-color: #E53935;
+  color: #fff;
+}
+
+.itemListaLinea .btnBorrarLinea:active {
+  transform: scale(0.92);
+}
+
+
+
+
+/* ================================================================
+   TEMA CLARO (solo chrome; canvas y lupa quedan oscuros)
+   ================================================================ */
+body.temaClaro { background: #f2f3f5; color: #1c1c1c; }
+
+body.temaClaro .barraLateral { background: rgba(255, 255, 255, 0.8); border-right-color: rgba(223, 225, 229, 0.8); box-shadow: 4px 0 16px rgba(0,0,0,0.10); }
+body.temaClaro .logo { border-bottom-color: #dfe1e5; }
+body.temaClaro .logo h1 { color: #1c1c1c; }
+body.temaClaro .seccionUsuario { background: transparent; border-bottom-color: #dfe1e5; }
+body.temaClaro .usuarioNombre { color: #1c1c1c; }
+body.temaClaro .usuarioNivel { color: #6b7280; }
+body.temaClaro .usuarioNivel.nivelSuperUsuario { color: #2563eb; }
+body.temaClaro .usuarioNivel.nivelUsuario { color: #4b5563; }
+body.temaClaro .menuItem { color: #444; }
+body.temaClaro .menuItem:hover { background: #eef0f3; color: #111; }
+body.temaClaro .menuItem.activo { background: #2962FF; color: #fff; }
+body.temaClaro .pieBarra { border-top-color: #dfe1e5; color: #8a8f98; }
+
+body.temaClaro .contenido { background: #f2f3f5; }
+/* Color de fondo del área de contenido del listado (pestaña activa + zona de abajo).
+   En oscuro coincide con el fondo del body (#121212); en claro, blanco. */
+body:not(.temaClaro) { --fondoContenidoListado: #121212; }
+body.temaClaro { --fondoContenidoListado: #ffffff; }
+body.temaClaro .encabezadoMarca { color: #1c1c1c; }
+body.temaClaro .filtro { color: #444; }
+body.temaClaro .filtro label { color: #444; }
+body.temaClaro .usuarioActivoListados { color: #6b7280; }
+body.temaClaro .usuarioActivoNombre { color: #1c1c1c; }
+body.temaClaro .ayuda { color: #6b7280; }
+body.temaClaro .tituloListado { color: #1c1c1c; }
+
+body.temaClaro .btnSecundario { background: #ffffff; color: #1c1c1c; border-color: #cfd3d9; }
+body.temaClaro .btnSecundario:hover:not(:disabled) { background: #eef0f3; }
+body.temaClaro .btnMenu { color: #444; }
+body.temaClaro .btnMenu:hover { background: #eef0f3; color: #111; border-color: #cfd3d9; }
+
+body.temaClaro .inputBusqueda { background: #ffffff; border-color: #cfd3d9; color: #1c1c1c; }
+body.temaClaro .inputBusqueda::placeholder { color: #9aa0a6; }
+body.temaClaro .btnLimpiarBusqueda { color: #6b7280; }
+body.temaClaro .btnLimpiarBusqueda:hover { background: #eef0f3; color: #111; }
+
+body.temaClaro .tabla { background: #ffffff; }
+body.temaClaro .tabla th, body.temaClaro .tabla td { border-bottom-color: #e5e7eb; color: #1c1c1c; }
+body.temaClaro .tabla thead th { background: #eef0f3; color: #4b5563; }
+body.temaClaro .tabla tbody tr:hover { background: #f5f6f8; }
+body.temaClaro .agarre { color: #9aa0a6; }
+body.temaClaro .mensajeVacio { background: #ffffff; color: #6b7280; }
+body.temaClaro .descripcionListado { color: #6b7280; }
+body.temaClaro .descripcionListado:hover { background: #eef0f3; }
+
+body.temaClaro .etiqueta { background: #e5e7eb; color: #374151; }
+body.temaClaro .etiquetaPropia { background: #dcfce7; color: #166534; }
+body.temaClaro .etiquetaOtro { background: #fef3c7; color: #92400e; }
+body.temaClaro .etiquetaSuperUsuario { background: #dbe7ff; color: #1d4ed8; }
+body.temaClaro .chipHoja { background: #eef0f3; color: #4b5563; border-color: #dfe1e5; }
+
+body.temaClaro .modalFondo { background: rgba(15, 23, 42, 0.45); }
+body.temaClaro .modalCaja { background: #ffffff; border-color: #dfe1e5; color: #1c1c1c; }
+body.temaClaro .modalCaja h2 { color: #1c1c1c; }
+body.temaClaro .modalCaja label { color: #444; }
+body.temaClaro .modalCaja input[type="text"],
+body.temaClaro .modalCaja input[type="number"],
+body.temaClaro .modalCaja select,
+body.temaClaro .modalCaja textarea { background: #f7f8fa; border-color: #cfd3d9; color: #1c1c1c; }
+body.temaClaro .listaSeleccionPids { background: #f7f8fa; border-color: #dfe1e5; }
+body.temaClaro .itemSeleccionPid { color: #374151; }
+body.temaClaro .itemSeleccionPid:hover { background: #eef0f3; }
+body.temaClaro .itemSeleccionPidConVer:hover { background: #eef0f3; }
+body.temaClaro .btnVerPid { background: #e5e7eb; color: #1c1c1c; }
+body.temaClaro .btnVerPid:hover { background: #d7dbe0; }
+
+body.temaClaro .menuContextual { background: #ffffff; border-color: #dfe1e5; color: #1c1c1c; }
+body.temaClaro .menuContextual .menuSeparador { background: #e5e7eb; }
+body.temaClaro .menuContextual .menuOpcion.deshabilitada { color: #9aa0a6; }
+body.temaClaro .menuContextual .menuOpcion.deshabilitada:hover { background: transparent; color: #9aa0a6; }
+body.temaClaro .menuContextual .menuOpcion.peligro { color: #b91c1c; }
+
+body.temaClaro .panelDerecho { background: #ffffff; border-left-color: #dfe1e5; }
+body.temaClaro .panelSeccion { border-bottom-color: #e5e7eb; }
+body.temaClaro .panelTitulo { color: #6b7280; }
+body.temaClaro .estadoPunto { color: #374151; }
+body.temaClaro .campoPanel { color: #4b5563; }
+body.temaClaro .campoPanel input[type="text"],
+body.temaClaro .campoPanel input[type="number"],
+body.temaClaro .campoPanel select { background: #f7f8fa; border-color: #cfd3d9; color: #1c1c1c; }
+body.temaClaro .campoPanel input:disabled,
+body.temaClaro .campoPanel select:disabled { background: #eceef1; border-color: #dfe1e5; color: #9aa0a6; }
+body.temaClaro .panelAyuda .lineaAyuda { color: #8a8f98; }
+body.temaClaro .pestanasPanel { border-bottom-color: #e5e7eb; }
+body.temaClaro .pestana { color: #6b7280; }
+body.temaClaro .pestana:hover { color: #1c1c1c; }
+body.temaClaro .pestana.activa { color: #1c1c1c; }
+body.temaClaro .colorLinea { background: #f7f8fa; }
+body.temaClaro .colorLinea:hover { background: #eef0f3; }
+body.temaClaro .colorLinea.activo { background: #e5e7eb; border-color: #2962FF; }
+body.temaClaro .colorLinea .nombreColor { color: #374151; }
+body.temaClaro .colorLinea .btnRenombrarColor { color: #6b7280; }
+body.temaClaro .itemListaMarca, body.temaClaro .itemListaLinea { background: #f7f8fa; color: #374151; }
+body.temaClaro .itemListaMarca:hover, body.temaClaro .itemListaLinea:hover { background: #eef0f3; }
+body.temaClaro .itemListaMarca.seleccionada, body.temaClaro .itemListaLinea.seleccionada { background: #dbe7ff; border-left-color: #2962FF; color: #1c1c1c; }
+body.temaClaro .divisorPanel { background: #dfe1e5; }
+body.temaClaro .divisorPanel::after { background: #b9bec6; }
+
+body.temaClaro .barraCalibracion { background: #ffffff; border-bottom-color: #dfe1e5; }
+body.temaClaro .tituloCalibracion { color: #444; }
+body.temaClaro .tituloCalibracion strong { color: #1c1c1c; }
+body.temaClaro .zoomLabel { color: #4b5563; }
+body.temaClaro .chkCapa { color: #444; }
+body.temaClaro .separadorBarra { background: #dfe1e5; }
+body.temaClaro .grupoLupa .iconoLupa { opacity: 0.7; }
+
+body.temaClaro .aviso { box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+
+/* En tema claro el área del visor va clara (el canvas y la lupa siguen oscuros) */
+body.temaClaro .lienzoCal { background: #f2f3f5; }
+body.temaClaro .visorConPanel { background: #f2f3f5; }
+
+/* ============ LOGO A LA DERECHA EN LAS CABECERAS ============ */
+/* Altura propia: se deja en 97px (independiente del logo de P&ID Mark,
+   que ahora mide 72.75px). Con el ratio de Tecpetrol (900x509) eso da
+   ~172px de ancho. */
+.encabezadoLogoDer {
+  height: 97px;
+  width: auto;
+  display: block;
+  /* Alineado con el borde SUPERIOR del logo de P&ID Mark (no centrado
+     respecto del bloque logo+nombre). */
+  align-self: start;
+  background: transparent;
+}
+
+/* Checkbox de modal deshabilitado: atenuar tambien el texto de la etiqueta
+   (antes solo se veia gris el cuadradito; el texto quedaba con color normal). */
+.campoCheckboxModal:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.campoCheckboxModal:has(input:disabled) input {
+  cursor: not-allowed;
+}
+
+/* ================================================================
+   HIPERVINCULOS (pantalla de calibracion)
+   ================================================================ */
+.capaHipervinculosCal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.hipervinculoRect {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid rgba(41, 98, 255, 0.85);
+  background: rgba(41, 98, 255, 0.12);
+  border-radius: 3px;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.hipervinculoRect:hover {
+  background: rgba(41, 98, 255, 0.26);
+  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.45);
+}
+/* Hipervínculo cuyo destino está desactualizado: rojo. */
+.hipervinculoRect.desactualizado {
+  border-color: rgba(229, 57, 53, 0.9);
+  background: rgba(229, 57, 53, 0.14);
+}
+.hipervinculoRect.desactualizado:hover {
+  background: rgba(229, 57, 53, 0.28);
+  box-shadow: 0 0 0 2px rgba(229, 57, 53, 0.5);
+}
+.hipervinculoRect.seleccionado {
+  border-color: #FFEB3B;
+  background: rgba(255, 235, 59, 0.18);
+  box-shadow: 0 0 0 2px rgba(255, 235, 59, 0.55);
+}
+.hipervinculoRectCurso {
+  border-style: dashed;
+  border-color: #FFEB3B;
+  background: rgba(255, 235, 59, 0.14);
+  pointer-events: none;
+}
+
+/* Rectángulo receptor que parpadea al llegar desde otro P&ID.
+   10 parpadeos en 5s = 1 ciclo de 0.5s (0.25s visible + 0.25s oculto). */
+.hipervinculoRect.parpadeando {
+  animation: parpadeoHipervinculo 0.5s ease-in-out 10;
+}
+/* Hipervínculo desactualizado: parpadea amarillo <-> rojo (no azul). */
+.hipervinculoRect.desactualizado.parpadeando {
+  animation: parpadeoHipervinculoDesact 0.5s ease-in-out 10;
+}
+
+/* Tirador de redimensión del hipervínculo seleccionado (esquina inf. der.) */
+.tiradorHipervinculo {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  background: #FFEB3B;
+  border: 2px solid #000;
+  border-radius: 50%;
+  cursor: nwse-resize;
+  z-index: 12;
+  pointer-events: auto;
+  box-shadow: 0 0 4px rgba(0,0,0,0.6);
+}
+@keyframes parpadeoHipervinculo {
+  0%, 49% {
+    border-color: #FFEB3B;
+    background: rgba(255, 235, 59, 0.55);
+    box-shadow: 0 0 0 3px rgba(255, 235, 59, 0.85);
+  }
+  50%, 100% {
+    border-color: rgba(41, 98, 255, 0.85);
+    background: rgba(41, 98, 255, 0.12);
+    box-shadow: none;
+  }
+}
+@keyframes parpadeoHipervinculoDesact {
+  0%, 49% {
+    border-color: #FFEB3B;
+    background: rgba(255, 235, 59, 0.55);
+    box-shadow: 0 0 0 3px rgba(255, 235, 59, 0.85);
+  }
+  50%, 100% {
+    border-color: rgba(229, 57, 53, 0.9);
+    background: rgba(229, 57, 53, 0.14);
+    box-shadow: none;
+  }
+}
+
+#lienzoCal.modoHipervinculo {
+  cursor: crosshair;
+}
+
+.listaHipervinculos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.itemListaHipervinculo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #232323;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #ccc;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.itemListaHipervinculo:hover { background: #2a2a2a; }
+.itemListaHipervinculo.seleccionada {
+  background: #2a3a5a;
+  border-left-color: #2962FF;
+  color: #fff;
+}
+.itemListaHipervinculo .textoHipervinculo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.itemListaHipervinculo .hojaHip {
+  color: #8aa0c0;
+  font-size: 10px;
+}
+.itemListaHipervinculo .btnEditarHip,
+.itemListaHipervinculo .btnBorrarHip {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  padding: 0;
+  border: 1px solid #555;
+  border-radius: 3px;
+  background: #2a2a2a;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+}
+.itemListaHipervinculo .btnEditarHip:hover {
+  background: #2962FF;
+  border-color: #2962FF;
+  color: #fff;
+}
+.itemListaHipervinculo .btnBorrarHip:hover {
+  background: #E53935;
+  border-color: #E53935;
+  color: #fff;
+}
+
+body.temaClaro .itemListaHipervinculo {
+  background: #f7f8fa;
+  color: #374151;
+}
+body.temaClaro .itemListaHipervinculo:hover { background: #eef0f3; }
+body.temaClaro .itemListaHipervinculo.seleccionada {
+  background: #dbe7ff;
+  border-left-color: #2962FF;
+  color: #1c1c1c;
+}
+body.temaClaro .itemListaHipervinculo .hojaHip { color: #6b7280; }
+body.temaClaro .itemListaHipervinculo .btnEditarHip,
+body.temaClaro .itemListaHipervinculo .btnBorrarHip {
+  background: #e5e7eb;
+  border-color: #cfd3d9;
+  color: #374151;
+}
+
+/* Selector de destino (modal con filtro) */
+.hipListaDestino {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #141414;
+  padding: 4px;
+}
+.hipOpcionDestino {
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #ccc;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hipOpcionDestino:hover { background: #232323; }
+.hipOpcionDestino.seleccionada {
+  background: #2962FF;
+  color: #fff;
+}
+.hipOpcionDestino .hojaHip {
+  color: #8aa0c0;
+  font-size: 10px;
+}
+.hipOpcionDestino.seleccionada .hojaHip { color: #dbe7ff; }
+
+body.temaClaro .hipListaDestino {
+  background: #f7f8fa;
+  border-color: #dfe1e5;
+}
+body.temaClaro .hipOpcionDestino { color: #374151; }
+body.temaClaro .hipOpcionDestino:hover { background: #eef0f3; }
+body.temaClaro .hipOpcionDestino.seleccionada { background: #2962FF; color: #fff; }
+body.temaClaro .hipOpcionDestino .hojaHip { color: #6b7280; }
+body.temaClaro .hipOpcionDestino.seleccionada .hojaHip { color: #dbe7ff; }
