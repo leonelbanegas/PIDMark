@@ -129,6 +129,9 @@ async function cargarSesion() {
     return;
   }
 
+  const pieVersion = $('pieVersion');
+  if (pieVersion && sesion.version) pieVersion.textContent = 'v' + sesion.version;
+
   $('infoSesion').textContent = sesion.usuario || '—';
   const ua = $('usuarioActivoListados');
   if (ua) {

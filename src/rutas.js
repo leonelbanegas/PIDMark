@@ -10,6 +10,7 @@ const sesiones = require('./sesiones');
 const pid = require('./pid');
 const pdfarender = require('./pdfarender');
 const PDFDocument = require('pdfkit');
+const versionAplicacion = require('../package.json').version;
 
 const LARGO_MAX_DESCRIPCION_LISTADO = 1000;
 const CANT_COLORES_LINEA = 10;
@@ -310,6 +311,7 @@ module.exports = function (app) {
       modoAuth: req.contexto.modoAuth,
       autenticado: req.contexto.autenticado,
       debeCambiarPassword: !!req.contexto.debeCambiarPassword,
+      version: versionAplicacion,
       config: { Marcadores: c.Marcadores, Lupa: c.Lupa, Interfaz: c.Interfaz }
     });
   });
