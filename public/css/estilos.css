@@ -1749,37 +1749,6 @@ body.redimensionando { user-select: none; cursor: col-resize; }
   -webkit-user-select: text;
 }
 
-/* ============ SELECTOR DE USUARIO SIMULADO ============ */
-
-.cajaSimulacion {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #333;
-}
-
-.etiquetaSimulacion {
-  display: block;
-  font-size: 10px;
-  color: #777;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-}
-
-.selectorUsuario {
-  width: 100%;
-  padding: 4px 6px;
-  font-size: 12px;
-  background: #121212;
-  border: 1px solid #3a3a3a;
-  color: #eee;
-  border-radius: 4px;
-}
-.selectorUsuario:focus {
-  outline: none;
-  border-color: #2962FF;
-}
-
 /* ============ CHECKBOXES DE CAPAS (marcas / líneas) ============ */
 
 .chkCapa {

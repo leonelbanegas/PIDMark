@@ -307,8 +307,6 @@ module.exports = function (app) {
       rol: req.contexto.rol || (req.contexto.admin ? 'admin' : 'usuario'),
       puedeGestionarPid: !!req.contexto.puedeGestionarPid,
       usuarioId: req.contexto.usuarioId || null,
-      usuarioReal: req.contexto.usuarioReal,
-      adminReal: req.contexto.adminReal,
       modoAuth: req.contexto.modoAuth,
       autenticado: req.contexto.autenticado,
       debeCambiarPassword: !!req.contexto.debeCambiarPassword,
@@ -317,7 +315,6 @@ module.exports = function (app) {
   });
 
   app.get('/api/usuarios', function (req, res) { if (!req.contexto.admin) return res.status(403).json({ error: 'Solo admin.' }); res.json({ usuarios: getDB().prepare('SELECT id, nombre_windows FROM usuarios ORDER BY lower(nombre_windows) ASC').all() }); });
-  app.get('/api/usuarios-simulables', function (req, res) { if (!req.contexto.adminReal) return res.status(403).json({ error: 'Solo admin.' }); const db = getDB(); res.json({ usuarios: db.prepare('SELECT id, nombre_windows FROM usuarios ORDER BY lower(nombre_windows) ASC').all(), usuarioReal: req.contexto.usuarioReal, usuarioSimulado: req.contexto.usuario !== req.contexto.usuarioReal ? req.contexto.usuario : null }); });
 
   // LISTADOS
   app.get('/api/listados', function (req, res) {

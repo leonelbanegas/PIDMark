@@ -22,8 +22,6 @@ let pidFiltroTexto = '';
 
 let ultimasRevisiones = {};
 
-let usuarioSimulado = '';
-
 const LARGO_MAX_DESCRIPCION_LISTADO = 1000;
 const LARGO_MAX_DESCRIPCION = 200;
 const LARGO_MAX_NOMBRE_LISTADO = 200;
@@ -116,8 +114,6 @@ function alternarTema() {
 
 // ============ Sesión ============
 async function cargarSesion() {
-  usuarioSimulado = sessionStorage.getItem('usuarioSimulado') || '';
-
   const r = await fetchAPI('/api/sesion');
 
   // En modo password, sin sesión válida -> a la pantalla de login.
@@ -189,8 +185,6 @@ async function cargarSesion() {
     abrirModalObligatorioCambioPassword();
   }
 
-  await inicializarSelectorUsuario();
-
   if (sesion.config && sesion.config.Lupa) {
     cal.lupaZoom = sesion.config.Lupa.Zoom || 3;
     cal.lupaTamano = sesion.config.Lupa.Tamano || 180;
@@ -198,69 +192,6 @@ async function cargarSesion() {
     marc.lupaTamano = cal.lupaTamano;
   }
   actualizarControlLupa();
-}
-
-async function inicializarSelectorUsuario() {
-  const caja = $('cajaSimulacion');
-  const select = $('selectorUsuario');
-  if (!caja || !select) return;
-
-  if (!sesion || !sesion.adminReal) {
-    caja.style.display = 'none';
-    return;
-  }
-
-  caja.style.display = '';
-
-  let data;
-  try {
-    const r = await fetchAPI('/api/usuarios-simulables');
-    data = await r.json();
-  } catch (e) {
-    caja.style.display = 'none';
-    return;
-  }
-  if (data.error) {
-    caja.style.display = 'none';
-    return;
-  }
-
-  const usuarios = data.usuarios || [];
-  const real = data.usuarioReal || '';
-  const simulado = data.usuarioSimulado || '';
-
-  let html = '';
-  html += '<option value="">«Volver a mi usuario real» (' + escaparHTML(real) + ')</option>';
-  usuarios.forEach(function (u) {
-    const sel = (String(u.nombre_windows).toLowerCase() === String(simulado).toLowerCase())
-      ? ' selected' : '';
-    html += '<option value="' + escaparHTML(u.nombre_windows) + '"' + sel + '>' +
-            escaparHTML(u.nombre_windows) + '</option>';
-  });
-  select.innerHTML = html;
-
-  if (simulado) {
-    const existe = usuarios.some(function (u) {
-      return String(u.nombre_windows).toLowerCase() === String(simulado).toLowerCase();
-    });
-    if (!existe) {
-      const opt = document.createElement('option');
-      opt.value = simulado;
-      opt.textContent = simulado + ' (nuevo)';
-      opt.selected = true;
-      select.appendChild(opt);
-    }
-  }
-
-  select.addEventListener('change', function () {
-    const val = select.value;
-    if (val === '') {
-      sessionStorage.removeItem('usuarioSimulado');
-    } else {
-      sessionStorage.setItem('usuarioSimulado', val);
-    }
-    location.reload();
-  });
 }
 
 function actualizarControlLupa() {

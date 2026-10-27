@@ -914,7 +914,12 @@ async function ejecutarCargaPID() {
 
   const esPDF = archivos.length === 1 && /\.pdf$/i.test(archivos[0].name);
 
-  mostrarAviso('Cargando P&ID... (puede tardar si el PDF es grande)');
+  if (esPDF) {
+    mostrarProgreso('Convirtiendo PDF a PNG...');
+    actualizarProgreso(null, 'Preparando el archivo PDF...');
+  } else {
+    mostrarAviso('Cargando P&ID...');
+  }
 
   let payload;
   try {
@@ -949,11 +954,15 @@ async function ejecutarCargaPID() {
       };
     }
   } catch (e) {
+    if (esPDF) ocultarProgreso();
     mostrarAviso('Error leyendo archivos: ' + e.message, true);
     return false;
   }
 
   try {
+    if (esPDF) {
+      actualizarProgreso(null, 'Enviando el PDF y convirtiendo sus páginas a PNG...');
+    }
     const r = await fetchAPI('/api/pids/cargar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -964,6 +973,7 @@ async function ejecutarCargaPID() {
       mostrarAviso(d.error || ('HTTP ' + r.status), true);
       return false;
     }
+    if (esPDF) actualizarProgreso(95, 'Conversión completada. Finalizando la carga...');
     const cant = (d.guardados || []).length;
     const conf = (d.conflictos || []).length;
     let msg = 'P&ID cargado: ' + cant + ' página(s) guardada(s).';
@@ -974,6 +984,8 @@ async function ejecutarCargaPID() {
   } catch (e) {
     mostrarAviso('Error al cargar: ' + e.message, true);
     return false;
+  } finally {
+    if (esPDF) ocultarProgreso();
   }
 }
 

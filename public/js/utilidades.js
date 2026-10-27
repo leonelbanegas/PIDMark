@@ -10,7 +10,6 @@ function $(id) { return document.getElementById(id); }
 function fetchAPI(url, opciones) {
   opciones = opciones || {};
   const headers = Object.assign({}, opciones.headers || {});
-  if (usuarioSimulado) headers['X-Usuario-Simulado'] = usuarioSimulado;
   return fetch(url, Object.assign({}, opciones, { headers: headers }));
 }
 

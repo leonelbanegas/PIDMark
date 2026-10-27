@@ -98,11 +98,6 @@ async function main() {
   app.use(express.json({ limit: '300mb' }));
 
   // Middleware: adjuntar contexto (config, usuario, admin) a cada request.
-  //
-  // Soporte de "usuario simulado": si el usuario real es admin y viene el
-  // header X-Usuario-Simulado, se usa ese valor como usuario efectivo y se
-  // recalcula el flag admin para ese usuario simulado. Si el usuario real
-  // no es admin, el header se ignora por completo.
   app.use((req, res, next) => {
     if (modoAuth === 'password') {
       // Identidad desde la cookie de sesión.
@@ -134,8 +129,6 @@ async function main() {
         admin,
         rol,
         puedeGestionarPid: (rol === 'admin' || rol === 'superusuario'),
-        usuarioReal: usuario,
-        adminReal: admin,
         usuarioId,
         debeCambiarPassword: debeCambiar,
         activo,
@@ -147,16 +140,8 @@ async function main() {
     }
 
     // Modo windows: comportamiento original.
-    let usuario = usuarioReal;
-    let admin = adminReal;
-
-    const simuladoRaw = req.headers['x-usuario-simulado'];
-    const simulado = (typeof simuladoRaw === 'string') ? simuladoRaw.trim() : '';
-
-    if (adminReal && simulado !== '') {
-      usuario = simulado;
-      admin = esAdmin(simulado, config);
-    }
+    const usuario = usuarioReal;
+    const admin = adminReal;
 
     // En modo windows, el rol sale del booleano admin (INI/BD).
     const rolWin = admin ? 'admin' : 'usuario';
@@ -167,8 +152,6 @@ async function main() {
       admin,
       rol: rolWin,
       puedeGestionarPid: (rolWin === 'admin' || rolWin === 'superusuario'),
-      usuarioReal,
-      adminReal,
       modoAuth: 'windows',
       autenticado: true
     };

@@ -69,25 +69,11 @@ function inicializarMenuLateral() {
   }
 
   // Click en una opcion del menu: navegar y cerrar la barra.
-  // OJO: el selector de usuario NO cierra, porque hay que poder desplegarlo
-  // y elegir un usuario sin que se cierre la barra.
   barra.addEventListener('click', function (e) {
     const opcion = e.target.closest('.menuItem');
     if (!opcion) return;
     cerrarInmediato();
   });
-
-  // Mientras se usa el selector de usuario, suspender el cierre por hover.
-  const selUsuario = document.getElementById('selectorUsuario');
-  if (selUsuario) {
-    selUsuario.addEventListener('mousedown', function () { manteniendoAbierto = true; });
-    selUsuario.addEventListener('focus', function () { manteniendoAbierto = true; });
-    selUsuario.addEventListener('blur', function () {
-      manteniendoAbierto = false;
-      programarCierre();
-    });
-    selUsuario.addEventListener('change', function () { manteniendoAbierto = false; });
-  }
 
   // Escape: cerrar.
   document.addEventListener('keydown', function (e) {
