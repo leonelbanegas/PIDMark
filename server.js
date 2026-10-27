@@ -4,7 +4,7 @@
 // Este archivo:
 //   1. Lee la configuración desde el INI.
 //   2. Verifica que el disco de red esté disponible.
-//   3. Detecta el usuario de Windows actual.
+//   3. Detecta el usuario de Windows actual cuando corresponde.
 //   4. Inicializa la base SQLite.
 //   5. Levanta el servidor Express y abre Chrome.
 
@@ -18,8 +18,6 @@ const { obtenerUsuarioWindows, esAdmin } = require('./src/usuario');
 const sesiones = require('./src/sesiones');
 const auth = require('./src/auth');
 const registrarRutas = require('./src/rutas');
-
-const PUERTO = 4123;
 
 // ----------------------------------------------------------------
 // Utilidades
@@ -59,10 +57,12 @@ async function main() {
   }
   log('Rutas accesibles.');
 
-  // 3. Detectar usuario de Windows y si es admin
-  const usuarioReal = obtenerUsuarioWindows();
-  const adminReal = esAdmin(usuarioReal, config);
-  log('Usuario real: ' + usuarioReal + (adminReal ? ' (admin)' : ''));
+  // 3. Detectar usuario del sistema solo en Windows. En Linux la identidad
+  // de los usuarios se obtiene del login de la aplicación, no del servicio.
+  const usuarioReal = process.platform === 'win32' ? obtenerUsuarioWindows() : null;
+  const adminReal = usuarioReal ? esAdmin(usuarioReal, config) : false;
+  if (usuarioReal) log('Usuario real: ' + usuarioReal + (adminReal ? ' (admin)' : ''));
+  else log('Sistema operativo: ' + process.platform);
 
   // 4. Inicializar base de datos SQLite
   try {
@@ -186,14 +186,25 @@ async function main() {
     res.status(500).json({ error: err.message });
   });
 
-  // 6. Levantar el servidor y abrir Chrome
-  app.listen(PUERTO, '127.0.0.1', async () => {
-    const url = 'http://127.0.0.1:' + PUERTO;
+  // 6. Levantar el servidor. En servidores Linux se usa systemd y no
+  // corresponde intentar abrir un navegador en una sesión gráfica.
+  const host = process.env.PID_HOST || '127.0.0.1';
+  const puerto = Number(process.env.PID_PORT || 4123);
+  if (!Number.isInteger(puerto) || puerto < 1 || puerto > 65535) {
+    abortar('PID_PORT debe ser un puerto entero entre 1 y 65535.');
+  }
+
+  app.listen(puerto, host, async () => {
+    const url = 'http://' + (host.includes(':') ? '[' + host + ']' : host) + ':' + puerto;
     log('Servidor disponible en ' + url);
+    if (process.platform !== 'win32') {
+      log('El servidor queda en segundo plano; configurá el acceso externo mediante un proxy HTTPS.');
+      return;
+    }
     try {
       await open(url, { app: { name: 'chrome' } });
     } catch (e) {
-      log('Abri manualmente: ' + url);
+      log('Abrí manualmente: ' + url);
     }
   });
 }

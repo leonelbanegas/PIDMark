@@ -83,11 +83,18 @@ function cargarConfig() {
   config.Interfaz.Tema = config.Interfaz.Tema || 'oscuro';
   config.Interfaz.Idioma = config.Interfaz.Idioma || 'es';
 
-  // Valores por defecto de [Autenticacion]
-  // Modo: 'windows' (usuario de Windows, sin login) | 'password' (login).
-  // Por defecto windows, para no romper instalaciones existentes.
-  const modoAuth = String(config.Autenticacion.Modo || 'windows').trim().toLowerCase();
-  config.Autenticacion.Modo = (modoAuth === 'password') ? 'password' : 'windows';
+  // En Windows se conserva la autenticación histórica. En otros sistemas,
+  // exigir contraseña evita identificar a todos los clientes como el usuario
+  // del proceso que ejecuta el servicio.
+  const modoPorDefecto = process.platform === 'win32' ? 'windows' : 'password';
+  const modoAuth = String(config.Autenticacion.Modo || modoPorDefecto).trim().toLowerCase();
+  if (modoAuth !== 'windows' && modoAuth !== 'password') {
+    throw new Error('Autenticacion.Modo debe ser "windows" o "password".');
+  }
+  if (modoAuth === 'windows' && process.platform !== 'win32') {
+    throw new Error('Autenticacion.Modo=windows solo está disponible en Windows. Usá Modo=password.');
+  }
+  config.Autenticacion.Modo = modoAuth;
   config.Autenticacion.UsuarioSemilla = String(config.Autenticacion.UsuarioSemilla || 'admin').trim();
 
   // Admin usuarios -> array en minúsculas

@@ -1,0 +1,24 @@
+[Unit]
+Description=PID Mark application server
+After=network.target
+
+[Service]
+Type=simple
+User=pidmark
+Group=pidmark
+WorkingDirectory=/opt/pid-mark
+Environment=NODE_ENV=production
+Environment=PID_CONFIG=/etc/pid-mark/config.ini
+Environment=PID_HOST=127.0.0.1
+Environment=PID_PORT=4123
+ExecStart=/usr/bin/node /opt/pid-mark/server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pid-mark
+
+[Install]
+WantedBy=multi-user.target
