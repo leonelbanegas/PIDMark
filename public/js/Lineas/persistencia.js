@@ -5,9 +5,9 @@
 // La lógica de guardar se maneja directamente desde visorMarcado.js
 // llamando a guardarLineasPendientes().
 
-async function obtenerNombresColores(pidNombre, pidHoja) {
+async function obtenerNombresColores(listadoId, pidNombre, pidHoja) {
   try {
-    const r = await fetchAPI('/api/pids/' + encodeURIComponent(pidNombre) + '/' + encodeURIComponent(pidHoja) + '/nombres-colores');
+    const r = await fetchAPI('/api/listados/' + listadoId + '/pids/' + encodeURIComponent(pidNombre) + '/' + encodeURIComponent(pidHoja) + '/nombres-colores');
     const d = await r.json();
     if (d && Array.isArray(d.nombres) && d.nombres.length === COLORES_LINEA.length) {
       return d.nombres.slice();

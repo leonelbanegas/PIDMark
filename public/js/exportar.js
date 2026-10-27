@@ -328,9 +328,8 @@ function descargarBlob(blob, nombreArchivo) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
-// Genera y descarga un JSON con las marcas del listado actual.
-// El nombre es el mismo que el del PDF pero con extensión .json.
-function descargarJSONMarcas(nombreArchivo) {
+// Genera y descarga un archivo JSON o CSV con las marcas del listado actual.
+function descargarArchivoMarcas(nombreArchivo, formato) {
   const marcas = (Array.isArray(itemsDelListado) ? itemsDelListado : []).map(function (it) {
     return {
       numero: it.numero,
@@ -370,7 +369,40 @@ function descargarJSONMarcas(nombreArchivo) {
     marcas: marcas
   };
 
-  const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+  let contenido, tipoMime;
+  if (formato === 'csv') {
+    const columnas = [
+      'version', 'generado', 'listado_id', 'listado_nombre', 'usuario',
+      'numero', 'tag', 'descripcion', 'diametro', 'cso_c', 'estado',
+      'ubicacion', 'pid_nombre', 'pid_hoja', 'pid_revision', 'x', 'y',
+      'forma', 'tamano_x', 'tamano_y', 'etiqueta_offset_x', 'etiqueta_offset_y'
+    ];
+    const filas = marcas.map(function (marca) {
+      return columnas.map(function (columna) {
+        if (Object.prototype.hasOwnProperty.call(marca, columna)) return marca[columna];
+        if (columna === 'version') return datos.version;
+        if (columna === 'generado') return datos.generado;
+        if (columna === 'listado_id') return datos.origen.listado_id;
+        if (columna === 'listado_nombre') return datos.origen.listado_nombre;
+        if (columna === 'usuario') return datos.origen.usuario;
+        return '';
+      });
+    });
+    const escaparCampo = function (valor) {
+      let texto = (valor === null || valor === undefined) ? '' : String(valor);
+      if (/^[\u0000-\u0020]*[=+\-@]/.test(texto)) texto = "'" + texto;
+      return '"' + texto.replace(/"/g, '""') + '"';
+    };
+    contenido = '\uFEFF' + [columnas].concat(filas)
+      .map(function (fila) { return fila.map(escaparCampo).join(','); })
+      .join('\r\n');
+    tipoMime = 'text/csv;charset=utf-8';
+  } else {
+    contenido = JSON.stringify(datos, null, 2);
+    tipoMime = 'application/json';
+  }
+
+  const blob = new Blob([contenido], { type: tipoMime });
   descargarBlob(blob, nombreArchivo);
 }
 
@@ -394,10 +426,12 @@ async function obtenerCanvasExportacionDePid(pidNombre, hojaTexto, rev, img) {
   const marcas = await obtenerMarcasDelPID(pidNombre, hojaTexto, rev);
   const lineasDelPid = await obtenerLineasDelPidEnListado(pidNombre, hojaTexto, rev);
 
-  const nombres = await obtenerNombresColores(pidNombre, hojaTexto);
-  if (nombres && typeof lineas !== 'undefined') {
-    lineas.nombres = nombres;
-  }
+  const nombresOriginales = (typeof lineas !== 'undefined' && Array.isArray(lineas.nombres))
+    ? lineas.nombres.slice()
+    : null;
+  const nombres = listadoActual
+    ? await obtenerNombresColores(listadoActual.id, pidNombre, hojaTexto)
+    : null;
 
   // Posición anclada de la leyenda para este P&ID (igual que el visor).
   // Si el P&ID es el abierto, se usa la del visor; si no, se consulta el server.
@@ -444,21 +478,30 @@ async function obtenerCanvasExportacionDePid(pidNombre, hojaTexto, rev, img) {
     offY = (h - altoImg * zoomRef) / 2;
   }
 
-  // Llamamos a construirCanvasExportacion pasando los parámetros calculados.
-  return construirCanvasExportacion({
-    imagen: img,
-    ancho: anchoImg,
-    alto: altoImg,
-    marcas: marcas,
-    lineasDelPid: lineasDelPid,
-    zoomReferencia: zoomRef,
-    offsetXOverride: offX,
-    offsetYOverride: offY,
-    leyendaPosOverride: leyendaPosOverride,
-    pidNombre: pidNombre,
-    pidHoja: hojaTexto,
-    pidRev: rev
-  });
+  // La leyenda lee los nombres desde el estado global del visor.
+  if (typeof lineas !== 'undefined') {
+    lineas.nombres = nombres || NOMBRES_COLORES_LINEA_DEFAULT.slice();
+  }
+  try {
+    return construirCanvasExportacion({
+      imagen: img,
+      ancho: anchoImg,
+      alto: altoImg,
+      marcas: marcas,
+      lineasDelPid: lineasDelPid,
+      zoomReferencia: zoomRef,
+      offsetXOverride: offX,
+      offsetYOverride: offY,
+      leyendaPosOverride: leyendaPosOverride,
+      pidNombre: pidNombre,
+      pidHoja: hojaTexto,
+      pidRev: rev
+    });
+  } finally {
+    if (nombresOriginales && typeof lineas !== 'undefined') {
+      lineas.nombres = nombresOriginales;
+    }
+  }
 }
 
 function exportarPNGActual() {
@@ -587,7 +630,7 @@ function exportarPDFCombinado() {
     return;
   }
 
-  // Orden: Portada, Listado, JSON, P&ID.
+  // Orden: Portada, Listado, archivo de marcas, P&ID.
   // Los tildes se recuerdan por USUARIO en localStorage (clave
   // 'exportOpciones_<usuario>'). Si no hay nada guardado, todos tildados.
   const opc = leerOpcionesExport();
@@ -599,57 +642,68 @@ function exportarPDFCombinado() {
     : '<label class="campoCheckboxModal" style="opacity:0.5;"><input type="checkbox" id="chkExportListado" disabled> Incluir listado de marcaciones (sin ítems)</label>';
 
   const chkJson = hayItems
-    ? '<label class="campoCheckboxModal"><input type="checkbox" id="chkExportJson"' + (opc.json ? ' checked' : '') + '> Incluir archivo JSON de marcas</label>'
-    : '<label class="campoCheckboxModal" style="opacity:0.5;"><input type="checkbox" id="chkExportJson" disabled> Incluir archivo JSON de marcas (requiere listado)</label>';
+    ? '<label class="campoCheckboxModal"><input type="checkbox" id="chkExportJson"' + (opc.json ? ' checked' : '') + '> Incluir archivo de marcas</label>'
+    : '<label class="campoCheckboxModal" style="opacity:0.5;"><input type="checkbox" id="chkExportJson" disabled> Incluir archivo de marcas (sin ítems)</label>';
+
+  const formatoArchivo = (opc.formatoArchivo === 'csv') ? 'csv' : 'json';
+  const formatoDeshabilitado = (!hayItems || !opc.json) ? ' disabled' : '';
+  const radiosFormatoArchivo =
+    '<div style="display:flex;gap:14px;margin-left:24px;">' +
+      '<label><input type="radio" name="formatoArchivoExport" value="json"' + (formatoArchivo === 'json' ? ' checked' : '') + formatoDeshabilitado + '> JSON</label>' +
+      '<label><input type="radio" name="formatoArchivoExport" value="csv"' + (formatoArchivo === 'csv' ? ' checked' : '') + formatoDeshabilitado + '> CSV</label>' +
+    '</div>';
 
   const chkPids = hayPids
     ? '<label class="campoCheckboxModal"><input type="checkbox" id="chkExportPids"' + (opc.pids ? ' checked' : '') + '> Incluir P&ID del listado (' + pidsDelListado.length + ')</label>'
     : '<label class="campoCheckboxModal" style="opacity:0.5;"><input type="checkbox" id="chkExportPids" disabled> Incluir P&ID del listado (sin P&ID)</label>';
 
   const contenido =
-    '<p style="margin-top:0;">Elegí qué secciones incluir en el PDF combinado:</p>' +
+    '<p style="margin-top:0;">Elegí qué incluir en el PDF y si querés descargar el archivo JSON o CSV por separado:</p>' +
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">' +
-      chkPortada + chkListado + chkJson + chkPids +
+      chkPortada + chkListado + chkJson + radiosFormatoArchivo + chkPids +
     '</div>';
 
   abrirModal('Exportar', contenido, function () {
     const incluirPids = !!(hayPids && $('chkExportPids').checked);
     const incluirPortada = !!$('chkExportPortada').checked;
     const incluirListado = !!(hayItems && $('chkExportListado').checked);
-    const incluirJson = !!(hayItems && incluirListado && $('chkExportJson').checked);
+    const incluirJson = !!(hayItems && $('chkExportJson').checked);
+    const radioFormatoSeleccionado = document.querySelector('input[name="formatoArchivoExport"]:checked');
+    const formatoArchivo = radioFormatoSeleccionado ? radioFormatoSeleccionado.value : 'json';
 
-    if (!incluirPids && !incluirPortada && !incluirListado) {
+    if (!incluirPids && !incluirPortada && !incluirListado && !incluirJson) {
       mostrarAviso('Elegí al menos una sección para exportar.', true);
       return false;
     }
 
     // Recordar los tildes para la próxima exportación de este usuario.
-    guardarOpcionesExport({ portada: incluirPortada, listado: incluirListado, json: incluirJson, pids: incluirPids });
+    guardarOpcionesExport({
+      portada: incluirPortada,
+      listado: incluirListado,
+      json: incluirJson,
+      formatoArchivo: formatoArchivo,
+      pids: incluirPids
+    });
 
     generarPDFCombinado({
       incluirPids: incluirPids,
       incluirPortada: incluirPortada,
       incluirListado: incluirListado,
-      incluirJson: incluirJson
+      incluirJson: incluirJson,
+      formatoArchivo: formatoArchivo
     });
     return true;
   }, { textoAceptar: 'Exportar' });
 
-  // Encadenar Listado -> JSON: si se destilda Listado, JSON se destilda y
-  // deshabilita. (El caso inicial "sin items" ya viene deshabilitado.)
-  const chkL = document.getElementById('chkExportListado');
+  // El formato del archivo es independiente de incluir el listado en el PDF.
   const chkJ = document.getElementById('chkExportJson');
-  if (chkL && chkJ && hayItems) {
-    chkL.addEventListener('change', function () {
-      if (!chkL.checked) {
-        chkJ.checked = false;
-        chkJ.disabled = true;
-      } else {
-        chkJ.disabled = false;
-        chkJ.checked = true;
-      }
+  const radiosFormato = document.querySelectorAll('input[name="formatoArchivoExport"]');
+  function sincronizarFormatoArchivo() {
+    radiosFormato.forEach(function (radio) {
+      radio.disabled = !chkJ || chkJ.disabled || !chkJ.checked;
     });
   }
+  if (chkJ) chkJ.addEventListener('change', sincronizarFormatoArchivo);
 }
 
 // ----------------------------------------------------------------
@@ -666,7 +720,7 @@ function _claveOpcionesExport() {
 }
 
 function leerOpcionesExport() {
-  const def = { portada: true, listado: true, json: true, pids: true };
+  const def = { portada: true, listado: true, json: true, formatoArchivo: 'json', pids: true };
   try {
     const raw = localStorage.getItem(_claveOpcionesExport());
     if (!raw) return def;
@@ -676,6 +730,7 @@ function leerOpcionesExport() {
       portada: (typeof d.portada === 'boolean') ? d.portada : true,
       listado: (typeof d.listado === 'boolean') ? d.listado : true,
       json: (typeof d.json === 'boolean') ? d.json : true,
+      formatoArchivo: d.formatoArchivo === 'csv' ? 'csv' : 'json',
       pids: (typeof d.pids === 'boolean') ? d.pids : true
     };
   } catch (e) {
@@ -690,6 +745,7 @@ function guardarOpcionesExport(opc) {
       portada: !!opc.portada,
       listado: !!opc.listado,
       json: !!opc.json,
+      formatoArchivo: opc.formatoArchivo === 'csv' ? 'csv' : 'json',
       pids: !!opc.pids
     }));
   } catch (e) {}
@@ -699,16 +755,16 @@ async function generarPDFCombinado(opciones) {
   const incluirPids = !!opciones.incluirPids;
   const incluirPortada = !!opciones.incluirPortada;
   const incluirListado = !!opciones.incluirListado;
-  // El JSON solo se genera si ademas se incluye el listado de marcaciones.
-  const incluirJson = !!opciones.incluirJson && incluirListado;
+  const incluirJson = !!opciones.incluirJson;
+  const incluirPDF = incluirPids || incluirPortada || incluirListado;
 
-  mostrarProgreso('Generando PDF combinado...');
+  mostrarProgreso(incluirPDF ? 'Generando exportación...' : 'Generando archivo de marcas...');
   actualizarProgreso(2, 'Preparando');
 
   try {
     const paginas = [];
 
-    if (incluirPids && Array.isArray(pidsDelListado)) {
+    if (incluirPDF && incluirPids && Array.isArray(pidsDelListado)) {
       for (let i = 0; i < pidsDelListado.length; i++) {
         const p = pidsDelListado[i];
         // Recolección de páginas: 2% a 70%.
@@ -769,37 +825,47 @@ async function generarPDFCombinado(opciones) {
       hojaListado = formatearHoja(pidsDelListado[0].hojaTexto || pidsDelListado[0].hoja);
     }
 
-    actualizarProgreso(75, 'Armando el PDF en el servidor');
+    const baseNombre = 'Listado_' + listadoActual.id + '_' +
+                       (listadoActual.nombre || 'sin_nombre').replace(/[^A-Za-z0-9_\-\.]/g, '_');
+    let pdfExportado = false;
+    if (incluirPDF) {
+      actualizarProgreso(75, 'Armando el PDF en el servidor');
 
-    const blob = await pedirPDFAlServer({
-      paginas: paginas,
-      titulo: titulo,
-      portada: incluirPortada,
-      incluirListado: incluirListado,
-      itemsListado: itemsListado,
-      nombreListado: listadoActual.nombre || '',
-      hojaListado: hojaListado,
-      usuario: (sesion && sesion.usuario) ? sesion.usuario : ''
-    });
-    if (!blob) return;
+      const blob = await pedirPDFAlServer({
+        paginas: paginas,
+        titulo: titulo,
+        portada: incluirPortada,
+        incluirListado: incluirListado,
+        itemsListado: itemsListado,
+        nombreListado: listadoActual.nombre || '',
+        hojaListado: hojaListado,
+        usuario: (sesion && sesion.usuario) ? sesion.usuario : ''
+      });
+      if (!blob) return;
 
-    actualizarProgreso(95, 'Descargando');
-    const nombre = 'Listado_' + listadoActual.id + '_' +
-                   (listadoActual.nombre || 'sin_nombre').replace(/[^A-Za-z0-9_\-\.]/g, '_') + '.pdf';
-    descargarBlob(blob, nombre);
+      actualizarProgreso(95, 'Descargando PDF');
+      descargarBlob(blob, baseNombre + '.pdf');
+      pdfExportado = true;
+    }
 
-    // Además del PDF, se descarga un JSON con las marcas (mismo nombre, .json),
-    // solo si el usuario lo pidió (y siempre que se incluya el listado).
+    // El archivo de marcas se puede exportar sin incluir el listado en el PDF.
     if (incluirJson) {
-      descargarJSONMarcas(nombre.replace(/\.pdf$/i, '.json'));
+      const extension = opciones.formatoArchivo === 'csv' ? '.csv' : '.json';
+      descargarArchivoMarcas(baseNombre + extension, opciones.formatoArchivo);
     }
 
     const partes = [];
     if (incluirPortada) partes.push('portada');
     if (paginas.length > 0) partes.push(paginas.length + ' P&ID');
     if (incluirListado) partes.push(itemsListado.length + ' marcaciones');
-    if (incluirJson) partes.push('JSON');
-    mostrarAviso('PDF combinado exportado (' + partes.join(' + ') + ').');
+    if (incluirJson) partes.push(opciones.formatoArchivo === 'csv' ? 'CSV' : 'JSON');
+    if (pdfExportado && incluirJson) {
+      mostrarAviso('PDF y archivo de marcas exportados (' + partes.join(' + ') + ').');
+    } else if (pdfExportado) {
+      mostrarAviso('PDF combinado exportado (' + partes.join(' + ') + ').');
+    } else if (incluirJson) {
+      mostrarAviso((opciones.formatoArchivo === 'csv' ? 'CSV' : 'JSON') + ' exportado.');
+    }
 
   } catch (e) {
     console.error(e);
@@ -856,6 +922,7 @@ async function obtenerMarcasDelPID(pid, hoja, rev) {
 }
 
 async function obtenerLineasDelPidEnListado(pid, hoja, rev) {
+  if (!listadoActual) return [];
   try {
     const r = await fetchAPI('/api/listados/' + listadoActual.id + '/lineas/' +
                              encodeURIComponent(pid) + '/' +

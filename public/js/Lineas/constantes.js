@@ -6,15 +6,15 @@
 // Paleta fija: los primeros 3 son fijos por convención de la empresa,
 // los otros 7 son configurables y renombrables por P&ID.
 var COLORES_LINEA = [
-  { indice: 0, color: '#FFC107', fijo: true  }, // Gas (amarillo)
+  { indice: 0, color: '#FFEE58', fijo: true  }, // Gas (amarillo claro)
   { indice: 1, color: '#795548', fijo: true  }, // Petróleo (marrón)
   { indice: 2, color: '#4FC3F7', fijo: true  }, // Agua (celeste)
-  { indice: 3, color: '#E53935', fijo: false }, // rojo
-  { indice: 4, color: '#43A047', fijo: false }, // verde
-  { indice: 5, color: '#FB8C00', fijo: false }, // naranja
+  { indice: 3, color: '#C62828', fijo: false }, // rojo intenso
+  { indice: 4, color: '#9CCC65', fijo: false }, // verde claro
+  { indice: 5, color: '#EF6C00', fijo: false }, // naranja oscuro
   { indice: 6, color: '#8E24AA', fijo: false }, // violeta
-  { indice: 7, color: '#EC407A', fijo: false }, // rosa
-  { indice: 8, color: '#00897B', fijo: false }, // turquesa
+  { indice: 7, color: '#0D47A1', fijo: false }, // azul oscuro
+  { indice: 8, color: '#1B5E20', fijo: false }, // verde oscuro
   { indice: 9, color: '#607D8B', fijo: false }  // gris
 ];
 

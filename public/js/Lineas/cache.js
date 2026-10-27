@@ -94,14 +94,14 @@ async function inicializarModoLineas(pidNombre, pidHoja, pidRev, listadoId) {
 
   try {
     const [nuevosNombres, nuevasLineas] = await Promise.all([
-      obtenerNombresColores(pidNombre, pidHoja),
+      obtenerNombresColores(listadoId, pidNombre, pidHoja),
       obtenerLineasDelPIDActual(listadoId, pidNombre, pidHoja, pidRev)
     ]);
 
     if (miToken !== lineas._initToken) return;
     if (lineas.guardando) return;
 
-    if (nuevosNombres) lineas.nombres = nuevosNombres;
+    lineas.nombres = nuevosNombres || NOMBRES_COLORES_LINEA_DEFAULT.slice();
 
     const lineasDelServer = Array.isArray(nuevasLineas) ? nuevasLineas : [];
     const lineasLocales = cacheLineas[nuevaClave] || [];

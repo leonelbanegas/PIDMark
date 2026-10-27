@@ -165,6 +165,18 @@ function normalizarOpacidadLinea(valor) {
   const n = parseInt(valor, 10); if (isNaN(n) || n < 1 || n > 100) return null; return n;
 }
 
+function nombresColoresLinea(db, listadoId, pidNombre, pidHoja) {
+  const filas = db.prepare(
+    'SELECT indice, nombre FROM nombres_colores_lineas_listado ' +
+    'WHERE listado_id = ? AND pid_nombre = ? AND pid_hoja = ?'
+  ).all(listadoId, pidNombre, pidHoja);
+  const nombres = NOMBRES_COLORES_DEFAULT.slice();
+  filas.forEach(function (f) {
+    if (f.indice >= 0 && f.indice < CANT_COLORES_LINEA) nombres[f.indice] = f.nombre;
+  });
+  return nombres;
+}
+
 // ----------------------------------------------------------------
 // Registro de rutas
 // ----------------------------------------------------------------
@@ -398,6 +410,15 @@ module.exports = function (app) {
       const insLeyenda = db.prepare('INSERT OR IGNORE INTO leyendas_lineas (listado_id, pid_nombre, pid_hoja, x, y) VALUES (?, ?, ?, ?, ?)');
       leyendas.forEach(ly => insLeyenda.run(nuevoId, ly.pid_nombre, ly.pid_hoja, ly.x, ly.y));
     } catch (e) {}
+    const nombresColores = db.prepare(
+      'SELECT pid_nombre, pid_hoja, indice, nombre FROM nombres_colores_lineas_listado WHERE listado_id = ?'
+    ).all(id);
+    const insNombreColor = db.prepare(
+      'INSERT INTO nombres_colores_lineas_listado (listado_id, pid_nombre, pid_hoja, indice, nombre) VALUES (?, ?, ?, ?, ?)'
+    );
+    nombresColores.forEach(function (nc) {
+      insNombreColor.run(nuevoId, nc.pid_nombre, nc.pid_hoja, nc.indice, nc.nombre);
+    });
     res.json({ id: nuevoId, nombre: nuevoNombre, itemsCopiados: items.length, lineasCopiadas: lineas.length });
   });
 
@@ -640,19 +661,38 @@ module.exports = function (app) {
     res.json({ ok: true });
   });
 
-  // NOMBRES COLORES
-  app.get('/api/pids/:nombre/:hoja/nombres-colores', function (req, res) {
-    const db = getDB(), pidNombre = decodeURIComponent(req.params.nombre), pidHoja = normalizarHoja(decodeURIComponent(req.params.hoja)).texto;
-    const filas = db.prepare('SELECT indice, nombre FROM nombres_colores_lineas WHERE pid_nombre = ? AND pid_hoja = ?').all(pidNombre, pidHoja);
-    const nombres = NOMBRES_COLORES_DEFAULT.slice();
-    filas.forEach(f => { if (f.indice >= 0 && f.indice < CANT_COLORES_LINEA) nombres[f.indice] = f.nombre; });
+  // NOMBRES COLORES (por P&ID dentro de cada listado)
+  app.get('/api/listados/:id/pids/:nombre/:hoja/nombres-colores', function (req, res) {
+    const db = getDB(), listadoId = parseInt(req.params.id, 10);
+    const pidNombre = decodeURIComponent(req.params.nombre);
+    const pidHoja = normalizarHoja(decodeURIComponent(req.params.hoja)).texto;
+    const listado = db.prepare('SELECT id FROM listados WHERE id = ?').get(listadoId);
+    if (!listado) return res.status(404).json({ error: 'Listado no encontrado.' });
+    const nombres = nombresColoresLinea(db, listadoId, pidNombre, pidHoja);
     res.json({ nombres: nombres, cantidadColores: CANT_COLORES_LINEA, coloresFijos: COLORES_LINEA_FIJOS });
   });
 
-  app.put('/api/pids/:nombre/:hoja/nombres-colores/:indice', function (req, res) {
-    const db = getDB(), pidNombre = decodeURIComponent(req.params.nombre), pidHoja = normalizarHoja(decodeURIComponent(req.params.hoja)).texto, indice = parseInt(req.params.indice, 10), nombre = String(req.body.nombre).trim();
+  app.put('/api/listados/:id/pids/:nombre/:hoja/nombres-colores/:indice', function (req, res) {
+    const db = getDB(), listadoId = parseInt(req.params.id, 10);
+    const usuario = req.contexto.usuario, u = asegurarUsuario(db, usuario);
+    const listado = db.prepare('SELECT * FROM listados WHERE id = ?').get(listadoId);
+    if (!listado) return res.status(404).json({ error: 'Listado no encontrado.' });
+    if (listado.usuario_id !== u.id && !req.contexto.admin) return res.status(403).json({ error: 'Sin permiso.' });
+
+    const pidNombre = decodeURIComponent(req.params.nombre);
+    const pidHoja = normalizarHoja(decodeURIComponent(req.params.hoja)).texto;
+    const indice = parseInt(req.params.indice, 10);
+    const nombre = String((req.body && req.body.nombre) || '').trim();
     if (indice < COLORES_LINEA_FIJOS || indice >= CANT_COLORES_LINEA || !nombre) return res.status(400).json({ error: 'Datos inválidos.' });
-    db.prepare('INSERT INTO nombres_colores_lineas (pid_nombre, pid_hoja, indice, nombre) VALUES (?, ?, ?, ?) ON CONFLICT(pid_nombre, pid_hoja, indice) DO UPDATE SET nombre = excluded.nombre').run(pidNombre, pidHoja, indice, nombre);
+    const asignado = db.prepare(
+      'SELECT 1 FROM listado_pids WHERE listado_id = ? AND pid_nombre = ? AND pid_hoja = ?'
+    ).get(listadoId, pidNombre, pidHoja);
+    if (!asignado) return res.status(400).json({ error: 'P&ID no asignado al listado.' });
+    db.prepare(
+      'INSERT INTO nombres_colores_lineas_listado (listado_id, pid_nombre, pid_hoja, indice, nombre) ' +
+      'VALUES (?, ?, ?, ?, ?) ' +
+      'ON CONFLICT(listado_id, pid_nombre, pid_hoja, indice) DO UPDATE SET nombre = excluded.nombre'
+    ).run(listadoId, pidNombre, pidHoja, indice, nombre);
     res.json({ ok: true });
   });
 
@@ -661,8 +701,9 @@ module.exports = function (app) {
     const db = getDB(); const listadoId = parseInt(req.params.id, 10); const pidNombre = decodeURIComponent(req.params.pid); const pidHoja = normalizarHoja(decodeURIComponent(req.params.hoja)).texto; const pidRev = String(req.params.rev);
 
     const filas = db.prepare('SELECT * FROM lineas WHERE listado_id = ? AND pid_nombre = ? AND pid_hoja = ? AND pid_revision = ? ORDER BY orden ASC, id ASC').all(listadoId, pidNombre, pidHoja, pidRev);
+    const nombres = nombresColoresLinea(db, listadoId, pidNombre, pidHoja);
 
-    res.json({ lineas: filas.map(f => ({ id: f.id, orden: f.orden, pid_nombre: f.pid_nombre, pid_hoja: f.pid_hoja, pid_revision: f.pid_revision, color_indice: f.color_indice, grosor: f.grosor, opacidad: f.opacidad, descripcion: f.descripcion || null, puntos: JSON.parse(f.puntos || '[]') })) });
+    res.json({ lineas: filas.map(f => ({ id: f.id, orden: f.orden, pid_nombre: f.pid_nombre, pid_hoja: f.pid_hoja, pid_revision: f.pid_revision, color_indice: f.color_indice, grosor: f.grosor, opacidad: f.opacidad, descripcion: f.descripcion || null, puntos: JSON.parse(f.puntos || '[]'), nombres_colores: nombres })) });
   });
 
   app.post('/api/listados/:id/lineas', function (req, res) {
@@ -1157,7 +1198,6 @@ module.exports = function (app) {
         { tabla: 'listado_pids', campoHoja: 'pid_hoja' },
         { tabla: 'items', campoHoja: 'pid_hoja' },
         { tabla: 'lineas', campoHoja: 'pid_hoja' },
-        { tabla: 'nombres_colores_lineas', campoHoja: 'pid_hoja' },
         { tabla: 'leyendas_lineas', campoHoja: 'pid_hoja' }
       ];
 
@@ -1172,6 +1212,23 @@ module.exports = function (app) {
         } catch (e) {
           // Si la tabla no existe o el UPDATE falla, seguimos.
         }
+      }
+      const nombresAnteriores = db.prepare(
+        'SELECT listado_id, indice, nombre FROM nombres_colores_lineas_listado ' +
+        'WHERE pid_nombre = ? AND pid_hoja = ?'
+      ).all(nombreViejo, hojaViejaNorm);
+      const upsertNombre = db.prepare(
+        'INSERT OR IGNORE INTO nombres_colores_lineas_listado ' +
+        '(listado_id, pid_nombre, pid_hoja, indice, nombre) VALUES (?, ?, ?, ?, ?)'
+      );
+      nombresAnteriores.forEach(function (nc) {
+        upsertNombre.run(nc.listado_id, nombreSeguro, hojaTextoNueva, nc.indice, nc.nombre);
+      });
+      if (nombresAnteriores.length) {
+        db.prepare(
+          'DELETE FROM nombres_colores_lineas_listado WHERE pid_nombre = ? AND pid_hoja = ?'
+        ).run(nombreViejo, hojaViejaNorm);
+        referenciasActualizadas += nombresAnteriores.length;
       }
 
       // El archivo cambio de nombre (y quizas de hoja/revision): invalidar
@@ -1317,7 +1374,7 @@ module.exports = function (app) {
       db.prepare('DELETE FROM items WHERE pid_nombre = ? AND pid_hoja = ? AND pid_revision = ?').run(nombre, hojaTexto, rev);
       db.prepare('DELETE FROM lineas WHERE pid_nombre = ? AND pid_hoja = ? AND pid_revision = ?').run(nombre, hojaTexto, rev);
       db.prepare('DELETE FROM listado_pids WHERE pid_nombre = ? AND pid_hoja = ? AND pid_revision = ?').run(nombre, hojaTexto, rev);
-      try { db.prepare('DELETE FROM nombres_colores_lineas WHERE pid_nombre = ? AND pid_hoja = ?').run(nombre, hojaTexto); } catch (e) {}
+      db.prepare('DELETE FROM nombres_colores_lineas_listado WHERE pid_nombre = ? AND pid_hoja = ?').run(nombre, hojaTexto);
       // La leyenda de líneas es por (listado, pid, hoja): al borrar el P&ID no debe quedar huérfana.
       try { db.prepare('DELETE FROM leyendas_lineas WHERE pid_nombre = ? AND pid_hoja = ?').run(nombre, hojaTexto); } catch (e) {}
       // Hipervinculos: se borran los que SALEN de este P&ID y los que APUNTAN

@@ -543,6 +543,7 @@ async function cargarLineasDelListado() {
             grosor: ln.grosor,
             opacidad: ln.opacidad,
             descripcion: ln.descripcion || null,
+            nombres_colores: ln.nombres_colores || null,
             puntos: ln.puntos || []
           });
         });
@@ -563,9 +564,9 @@ async function cargarLineasDelListado() {
 }
 
 // Nombre visible del color de una línea (Gas / Petróleo / Agua / Color N).
-function _nombreColorLinea(indice) {
-  const nombres = (typeof lineas !== 'undefined' && Array.isArray(lineas.nombres))
-    ? lineas.nombres
+function _nombreColorLinea(indice, nombresPid) {
+  const nombres = Array.isArray(nombresPid)
+    ? nombresPid
     : (typeof NOMBRES_COLORES_LINEA_DEFAULT !== 'undefined' ? NOMBRES_COLORES_LINEA_DEFAULT : []);
   return nombres[indice] || ('Color ' + (indice + 1));
 }
@@ -595,7 +596,7 @@ function dibujarTablaLineas() {
 
   cuerpo.innerHTML = lineasDelListado.map(function (ln) {
     const color = _colorHexLinea(ln.color_indice);
-    const nombreColor = _nombreColorLinea(ln.color_indice);
+    const nombreColor = _nombreColorLinea(ln.color_indice, ln.nombres_colores);
     const hojaTexto = formatearHoja(ln.pid_hoja);
     const desc = ln.descripcion ? String(ln.descripcion) : '';
     return '<tr class="filaLinea" data-id="' + ln.id + '" ' +
@@ -704,7 +705,7 @@ function abrirModalEditarLinea(idLinea) {
 
   const colores = (typeof COLORES_LINEA !== 'undefined') ? COLORES_LINEA : [];
   const opcionesColor = colores.map(function (c) {
-    const nom = _nombreColorLinea(c.indice);
+    const nom = _nombreColorLinea(c.indice, ln.nombres_colores);
     return '<option value="' + c.indice + '"' + (ln.color_indice === c.indice ? ' selected' : '') + '>' +
       escaparHTML(nom) + '</option>';
   }).join('');

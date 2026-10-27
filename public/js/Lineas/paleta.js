@@ -59,7 +59,7 @@ function renombrarColorLinea(indice) {
       const inp = $('inpNombreColor'), nuevo = (inp ? inp.value : '').trim();
       if (!nuevo) { mostrarAviso('El nombre no puede estar vacío.', true); return false; }
 
-      fetchAPI('/api/pids/' + encodeURIComponent(lineas._pidNombre) + '/' + encodeURIComponent(lineas._pidHoja) + '/nombres-colores/' + indice, {
+      fetchAPI('/api/listados/' + lineas._listadoId + '/pids/' + encodeURIComponent(lineas._pidNombre) + '/' + encodeURIComponent(lineas._pidHoja) + '/nombres-colores/' + indice, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nombre: nuevo })

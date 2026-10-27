@@ -92,12 +92,14 @@ function crearEsquema() {
       FOREIGN KEY (listado_id) REFERENCES listados(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS nombres_colores_lineas (
+    CREATE TABLE IF NOT EXISTS nombres_colores_lineas_listado (
+      listado_id INTEGER NOT NULL,
       pid_nombre TEXT NOT NULL,
       pid_hoja TEXT NOT NULL,
       indice INTEGER NOT NULL,
       nombre TEXT NOT NULL,
-      PRIMARY KEY (pid_nombre, pid_hoja, indice)
+      PRIMARY KEY (listado_id, pid_nombre, pid_hoja, indice),
+      FOREIGN KEY (listado_id) REFERENCES listados(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS hipervinculos (
@@ -144,7 +146,37 @@ function crearEsquema() {
   migrarUsuariosPassword();
   migrarHipervinculos();
   migrarLineasDescripcion();
+  migrarNombresColoresLineasPorListado();
   migrarIndices();
+}
+
+/**
+ * Migra los nombres de colores globales al ámbito de cada listado que ya
+ * tenía asignado ese P&ID. Los listados creados después parten de defaults.
+ */
+function migrarNombresColoresLineasPorListado() {
+  const existeTablaAnterior = db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'nombres_colores_lineas'"
+  ).get();
+  if (!existeTablaAnterior) return;
+
+  db.exec('BEGIN');
+  try {
+    db.exec(`
+      INSERT OR IGNORE INTO nombres_colores_lineas_listado
+        (listado_id, pid_nombre, pid_hoja, indice, nombre)
+      SELECT lp.listado_id, nc.pid_nombre, nc.pid_hoja, nc.indice, nc.nombre
+      FROM nombres_colores_lineas nc
+      JOIN listado_pids lp
+        ON lp.pid_nombre = nc.pid_nombre
+        AND lp.pid_hoja = nc.pid_hoja
+    `);
+    db.exec('DROP TABLE nombres_colores_lineas');
+    db.exec('COMMIT');
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch (e2) {}
+    throw e;
+  }
 }
 
 /**
