@@ -25,10 +25,10 @@ function dibujarTablaListados() {
     if (filtroActual === 'mios' && !l.esPropio) return false;
 
     if (!filtro) return true;
-    // Busca por nombre, dueño y también por el # (id) del listado.
+    // Busca por nombre, dueño, P&ID asignados y también por el # (id) del listado.
     // Se quita un '#' inicial por si el usuario escribe "#12".
     const filtroSinNumeral = filtro.charAt(0) === '#' ? filtro.slice(1) : filtro;
-    const texto = (String(l.nombre) + ' ' + String(l.usuario) + ' #' + String(l.id) + ' ' + String(l.id)).toLowerCase();
+    const texto = (String(l.nombre) + ' ' + String(l.usuario) + ' ' + String(l.pids_busqueda || '') + ' #' + String(l.id) + ' ' + String(l.id)).toLowerCase();
     return texto.indexOf(filtro) !== -1 || texto.indexOf(filtroSinNumeral) !== -1;
   });
 

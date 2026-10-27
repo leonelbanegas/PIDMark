@@ -310,8 +310,8 @@ module.exports = function (app) {
   // LISTADOS
   app.get('/api/listados', function (req, res) {
     const db = getDB(), usuario = req.contexto.usuario, u = asegurarUsuario(db, usuario);
-    const filas = db.prepare('SELECT l.id, l.nombre, l.descripcion, l.creado, l.modificado, u.nombre_windows AS usuario, l.usuario_id, l.origen_id, (SELECT COUNT(*) FROM items WHERE listado_id = l.id) AS cantidad_items, (SELECT COUNT(*) FROM listado_pids WHERE listado_id = l.id) AS cantidad_pids FROM listados l JOIN usuarios u ON u.id = l.usuario_id ORDER BY l.modificado DESC').all();
-    res.json({ usuarioActual: usuario, usuarioId: u.id, listados: filas.map(function (f) { return { id: f.id, nombre: f.nombre, descripcion: f.descripcion || null, creado: f.creado, modificado: f.modificado, usuario: f.usuario, usuario_id: f.usuario_id, origen_id: f.origen_id, cantidad_items: f.cantidad_items, cantidad_pids: f.cantidad_pids, esPropio: f.usuario_id === u.id, puedeEditar: f.usuario_id === u.id || req.contexto.admin }; }) });
+    const filas = db.prepare('SELECT l.id, l.nombre, l.descripcion, l.creado, l.modificado, u.nombre_windows AS usuario, l.usuario_id, l.origen_id, (SELECT COUNT(*) FROM items WHERE listado_id = l.id) AS cantidad_items, (SELECT COUNT(*) FROM listado_pids WHERE listado_id = l.id) AS cantidad_pids, (SELECT GROUP_CONCAT(pid_nombre, \' \') FROM listado_pids WHERE listado_id = l.id) AS pids_busqueda FROM listados l JOIN usuarios u ON u.id = l.usuario_id ORDER BY l.modificado DESC').all();
+    res.json({ usuarioActual: usuario, usuarioId: u.id, listados: filas.map(function (f) { return { id: f.id, nombre: f.nombre, descripcion: f.descripcion || null, creado: f.creado, modificado: f.modificado, usuario: f.usuario, usuario_id: f.usuario_id, origen_id: f.origen_id, cantidad_items: f.cantidad_items, cantidad_pids: f.cantidad_pids, pids_busqueda: f.pids_busqueda || '', esPropio: f.usuario_id === u.id, puedeEditar: f.usuario_id === u.id || req.contexto.admin }; }) });
   });
 
   app.post('/api/listados', function (req, res) {
