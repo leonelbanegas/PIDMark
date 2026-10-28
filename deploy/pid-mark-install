@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 usage() {
   echo "Uso: sudo bash pid-mark-install <version|tag>"
-  echo "Ejemplo: sudo bash pid-mark-install v1.0.3"
+  echo "Ejemplo: sudo bash pid-mark-install v1.0.4"
 }
 
 if (( EUID != 0 )); then
@@ -38,7 +38,7 @@ fi
 
 requested_version="${1#v}"
 if [[ ! "$requested_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Versión inválida. Usa un formato como 1.0.3 o v1.0.3." >&2
+  echo "Versión inválida. Usa un formato como 1.0.4 o v1.0.4." >&2
   exit 2
 fi
 readonly TAG="v${requested_version}"
@@ -213,7 +213,9 @@ systemctl start "$SERVICE"
 
 healthy=0
 for _ in {1..30}; do
-  if response="$(curl --fail --silent --show-error --max-time 2 "$HEALTH_URL" 2>/dev/null)" \
+  if response="$(curl --fail --silent --show-error --max-time 2 \
+    --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' \
+    "$HEALTH_URL" 2>/dev/null)" \
     && [[ "$response" == *"\"version\":\"${requested_version}\""* ]]; then
     healthy=1
     break
