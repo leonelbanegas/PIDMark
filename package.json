@@ -1,6 +1,6 @@
 {
   "name": "pid-mark",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Marcador de válvulas e instrumentos sobre planos P&ID",
   "main": "server.js",
   "bin": "server.js",

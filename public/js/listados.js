@@ -7,7 +7,7 @@
 // P&ID.
 
 // ============ Listados ============
-let ordenListadoPrincipal = { columna: null, direccion: 1 };
+let ordenListadoPrincipal = { columna: 'id', direccion: -1 };
 const comparadorTextoListados = new Intl.Collator('es', {
   numeric: true,
   sensitivity: 'base'
@@ -39,7 +39,7 @@ function actualizarIndicadoresOrdenListados() {
     if (indicador) {
       indicador.textContent = activo
         ? (ordenListadoPrincipal.direccion === 1 ? '↑' : '↓')
-        : '↕';
+        : '';
     }
   });
 }
