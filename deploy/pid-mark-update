@@ -14,7 +14,7 @@ TRANSACTION_STARTED=0
 
 usage() {
   echo "Uso: sudo pid-mark-update <version|tag>"
-  echo "Ejemplo: sudo pid-mark-update v1.0.1"
+  echo "Ejemplo: sudo pid-mark-update v1.0.3"
 }
 
 rollback_on_error() {

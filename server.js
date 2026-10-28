@@ -95,6 +95,17 @@ async function main() {
 
   // 5. Servidor Express
   const app = express();
+
+  // Bloquear todos los recursos de la aplicación en navegadores no soportados.
+  app.use((req, res, next) => {
+    const ua = req.headers['user-agent'] || '';
+    const esChrome = /Chrome\//.test(ua) && !/Edg\//.test(ua) && !/OPR\//.test(ua);
+    if (!esChrome) {
+      return res.status(403).sendFile(path.join(__dirname, 'public', 'bloqueo.html'));
+    }
+    next();
+  });
+
   app.use(express.json({ limit: '300mb' }));
 
   // Middleware: adjuntar contexto (config, usuario, admin) a cada request.
@@ -172,11 +183,8 @@ async function main() {
     res.sendFile(path.join(__dirname, 'public', 'favicon.svg'));
   });
 
-  // Ruta raíz: si no es Chrome, redirigir a /bloqueo.html
+  // Ruta raíz
   app.get('/', (req, res) => {
-    const ua = req.headers['user-agent'] || '';
-    const esChrome = /Chrome\//.test(ua) && !/Edg\//.test(ua) && !/OPR\//.test(ua);
-    if (!esChrome) return res.redirect('/bloqueo.html');
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
   });
 
