@@ -161,6 +161,11 @@ async function cargarSesion() {
   // Menú "Usuarios": solo para admin.
   const menuUsr = $('menuUsuarios');
   if (menuUsr) menuUsr.style.display = sesion.admin ? '' : 'none';
+  const menuActualizacion = $('menuActualizacionAdmin');
+  if (menuActualizacion) {
+    menuActualizacion.style.display =
+      sesion.admin && sesion.plataforma === 'linux' ? '' : 'none';
+  }
 
   // Botón "Cargar P&ID": visible para Admin y SuperUsuario.
   const btnCargar = $('btnCargarPID');
@@ -216,7 +221,8 @@ function marcarMenuActivo(idActivo) {
 
 const IDS_PANTALLAS = [
   'pantallaListados', 'pantallaListadoAbierto',
-  'pantallaPID', 'pantallaCalibracion', 'pantallaMarcado', 'pantallaUsuarios'
+  'pantallaPID', 'pantallaCalibracion', 'pantallaMarcado',
+  'pantallaUsuarios', 'pantallaActualizacionAdmin'
 ];
 
 // Pantalla visible actualmente (para animar el cambio).
@@ -441,6 +447,7 @@ function engancharEventos() {
 
   if (typeof engancharPestanasListado === 'function') engancharPestanasListado();
   if (typeof engancharEventosUsuarios === 'function') engancharEventosUsuarios();
+  if (typeof engancharEventosActualizacionAdmin === 'function') engancharEventosActualizacionAdmin();
 
   engancharEventosCalibracion();
   engancharEventosMarcado();
