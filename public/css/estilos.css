@@ -600,11 +600,45 @@ body.temaClaro .flechaArbolPid { color: #9aa0a6; }
 
 .tabla thead th[data-ordenar] { cursor: pointer; }
 .indicadorOrdenListado {
-  color: #777;
-  font-size: 11px;
-  margin-left: 3px;
+  display: inline-block;
+  position: relative;
+  width: 14px;
+  height: 15px;
+  margin-left: 4px;
+  vertical-align: -2px;
+  color: inherit;
 }
-body.temaClaro .indicadorOrdenListado { color: #777; }
+.indicadorOrdenListado::before,
+.indicadorOrdenListado::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.indicadorOrdenListado.ordenAscendente::before {
+  bottom: 0;
+  width: 6px;
+  height: 9px;
+  background: currentColor;
+}
+.indicadorOrdenListado.ordenAscendente::after {
+  top: 0;
+  border-right: 7px solid transparent;
+  border-bottom: 8px solid currentColor;
+  border-left: 7px solid transparent;
+}
+.indicadorOrdenListado.ordenDescendente::before {
+  top: 0;
+  width: 6px;
+  height: 9px;
+  background: currentColor;
+}
+.indicadorOrdenListado.ordenDescendente::after {
+  bottom: 0;
+  border-top: 8px solid currentColor;
+  border-right: 7px solid transparent;
+  border-left: 7px solid transparent;
+}
 
 .tabla thead th.columnaNumero {
   width: 1% !important;

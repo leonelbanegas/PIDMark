@@ -37,9 +37,8 @@ function actualizarIndicadoresOrdenListados() {
       : 'none');
     const indicador = th.querySelector('.indicadorOrdenListado');
     if (indicador) {
-      indicador.textContent = activo
-        ? (ordenListadoPrincipal.direccion === 1 ? '↑' : '↓')
-        : '';
+      indicador.classList.toggle('ordenAscendente', activo && ordenListadoPrincipal.direccion === 1);
+      indicador.classList.toggle('ordenDescendente', activo && ordenListadoPrincipal.direccion === -1);
     }
   });
 }

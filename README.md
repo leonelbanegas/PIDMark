@@ -72,9 +72,9 @@ público para descargar el código sin credenciales. Descarga el archivo, revisa
 su contenido y ejecútalo como administrador:
 
 ```bash
-curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.1.5/deploy/pid-mark-install --output /tmp/pid-mark-install
+curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.1.6/deploy/pid-mark-install --output /tmp/pid-mark-install
 sed -n '1,240p' /tmp/pid-mark-install
-sudo bash /tmp/pid-mark-install v1.1.5
+sudo bash /tmp/pid-mark-install v1.1.6
 rm /tmp/pid-mark-install
 ```
 
@@ -157,11 +157,11 @@ comando de actualización para instalar la integración del banner y el
 actualizador web:
 
 ```bash
-curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.1.5/deploy/pid-mark-update --output /tmp/pid-mark-update &&
+curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.1.6/deploy/pid-mark-update --output /tmp/pid-mark-update &&
 sudo install -o root -g root -m 0755 /tmp/pid-mark-update /usr/local/sbin/pid-mark-update &&
 rm /tmp/pid-mark-update
 
-sudo pid-mark-update v1.1.5
+sudo pid-mark-update v1.1.6
 ```
 
 Después de esta actualización, los administradores en Ubuntu pueden usar la
@@ -177,7 +177,7 @@ proceso web.
 La actualización también se puede ejecutar por SSH:
 
 ```bash
-sudo pid-mark-update v1.1.5
+sudo pid-mark-update v1.1.6
 ```
 
 El actualizador descarga exclusivamente esa etiqueta, valida la versión y sus

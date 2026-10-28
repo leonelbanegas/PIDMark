@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 usage() {
   echo "Uso: sudo bash pid-mark-install <version|tag>"
-  echo "Ejemplo: sudo bash pid-mark-install v1.1.5"
+  echo "Ejemplo: sudo bash pid-mark-install v1.1.6"
 }
 
 if (( EUID != 0 )); then
@@ -38,7 +38,7 @@ fi
 
 requested_version="${1#v}"
 if [[ ! "$requested_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Versión inválida. Usa un formato como 1.1.5 o v1.1.5." >&2
+  echo "Versión inválida. Usa un formato como 1.1.6 o v1.1.6." >&2
   exit 2
 fi
 readonly TAG="v${requested_version}"
