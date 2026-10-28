@@ -95,6 +95,36 @@ Guarda la base de datos, imágenes, respaldos y logs en almacenamiento local
 persistente del servidor. Define y prueba un procedimiento de copia de
 seguridad antes de cargar datos reales.
 
+### Actualizar desde GitHub
+
+El repositorio debe ser público para descargar las etiquetas sin autenticación.
+En un servidor ya instalado, descarga e instala el actualizador una sola vez
+desde la etiqueta que lo incorpora (por ejemplo, `v1.0.1`):
+
+```bash
+curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.0.1/deploy/pid-mark-update --output /tmp/pid-mark-update &&
+sudo install -o root -g root -m 0755 /tmp/pid-mark-update /usr/local/sbin/pid-mark-update &&
+rm /tmp/pid-mark-update
+```
+
+Si el proyecto ya está disponible en el servidor, se puede instalar desde su
+carpeta con `sudo install -o root -g root -m 0755 deploy/pid-mark-update
+/usr/local/sbin/pid-mark-update`.
+
+Después, para cada actualización, pasa la etiqueta publicada en GitHub:
+
+```bash
+sudo pid-mark-update v1.0.1
+```
+
+El actualizador descarga exclusivamente esa etiqueta, valida la versión y sus
+dependencias, detiene el servicio y comprueba que la nueva versión responda.
+Si falla la instalación o la comprobación, restaura automáticamente el código
+anterior. Cada versión anterior se conserva en `/opt/pid-mark-backup-*`; los
+datos de `/var/lib/pid-mark` y la configuración de `/etc/pid-mark` no se
+reemplazan. No borres los respaldos hasta confirmar que la actualización
+funciona y tener una copia de seguridad independiente de los datos.
+
 ## Planos P&ID
 
 Los planos se guardan en la carpeta configurada como `Rutas.CarpetaImagenes`.

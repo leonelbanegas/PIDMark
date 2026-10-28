@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly APP_DIR="/opt/pid-mark"
+readonly DATA_DIR="/var/lib/pid-mark"
+readonly CONFIG_FILE="/etc/pid-mark/config.ini"
+readonly SERVICE="pid-mark"
+readonly HEALTH_URL="http://127.0.0.1:4123/api/sesion"
+readonly ARCHIVE_BASE_URL="https://codeload.github.com/leonelbanegas/PIDMark/tar.gz/refs/tags"
+
+WORK_DIR=""
+BACKUP_DIR=""
+TRANSACTION_STARTED=0
+
+usage() {
+  echo "Uso: sudo pid-mark-update <version|tag>"
+  echo "Ejemplo: sudo pid-mark-update v1.0.1"
+}
+
+rollback_on_error() {
+  local status=$?
+  trap - EXIT
+
+  if (( TRANSACTION_STARTED )); then
+    echo "La actualización falló; restaurando la versión anterior..." >&2
+    if ! systemctl stop "$SERVICE"; then
+      echo "No se pudo detener el servicio durante el rollback." >&2
+    fi
+    if [[ -e "$APP_DIR" ]]; then
+      local failed_dir="/opt/pid-mark-failed-$(date +%Y%m%d-%H%M%S)"
+      if mv -- "$APP_DIR" "$failed_dir"; then
+        echo "Código fallido conservado en: $failed_dir" >&2
+      else
+        echo "No se pudo apartar el código fallido en $APP_DIR." >&2
+      fi
+    fi
+    if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
+      if mv -- "$BACKUP_DIR" "$APP_DIR"; then
+        if systemctl start "$SERVICE"; then
+          echo "Versión anterior restaurada desde: $BACKUP_DIR" >&2
+        else
+          echo "El código anterior fue restaurado, pero no se pudo iniciar el servicio." >&2
+        fi
+      else
+        echo "No se pudo restaurar el código anterior desde: $BACKUP_DIR" >&2
+      fi
+    else
+      echo "No se encontró el respaldo para rollback: $BACKUP_DIR" >&2
+    fi
+  fi
+
+  if [[ -n "$WORK_DIR" && -d "$WORK_DIR" ]]; then
+    rm -rf -- "$WORK_DIR"
+  fi
+  exit "$status"
+}
+
+if (( EUID != 0 )); then
+  echo "Ejecuta este comando con sudo." >&2
+  exit 1
+fi
+
+if (( $# != 1 )); then
+  usage >&2
+  exit 2
+fi
+
+requested_tag="$1"
+requested_tag="${requested_tag#v}"
+if [[ ! "$requested_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Versión inválida. Usa un formato como 1.0.1 o v1.0.1." >&2
+  exit 2
+fi
+readonly TAG="v${requested_tag}"
+
+for command in curl tar node npm runuser systemctl; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "Falta el comando requerido: $command" >&2
+    exit 1
+  fi
+done
+
+if ! id pidmark >/dev/null 2>&1; then
+  echo "No existe el usuario de servicio pidmark." >&2
+  exit 1
+fi
+if [[ ! -f "$APP_DIR/package.json" || ! -f "$APP_DIR/server.js" ]]; then
+  echo "No se encontró una instalación PID Mark en $APP_DIR." >&2
+  exit 1
+fi
+if [[ ! -f "$CONFIG_FILE" || ! -d "$DATA_DIR" ]]; then
+  echo "No se encuentra la configuración o los datos persistentes de PID Mark." >&2
+  exit 1
+fi
+if [[ ! -f "/etc/systemd/system/${SERVICE}.service" ]]; then
+  echo "No se encontró /etc/systemd/system/${SERVICE}.service." >&2
+  exit 1
+fi
+if ! systemctl is-active --quiet "$SERVICE"; then
+  echo "El servicio $SERVICE debe estar activo antes de actualizar." >&2
+  exit 1
+fi
+
+if ! node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 13) ? 0 : 1)'; then
+  echo "PID Mark requiere Node.js 22.13.0 o posterior." >&2
+  exit 1
+fi
+
+current_version="$(node -p "require('${APP_DIR}/package.json').version")"
+if [[ "$current_version" == "$requested_tag" ]]; then
+  echo "PID Mark ya está en la versión $TAG."
+  exit 0
+fi
+
+WORK_DIR="$(mktemp -d /opt/.pid-mark-update.XXXXXX)"
+chown pidmark:pidmark "$WORK_DIR"
+readonly NEW_DIR="${WORK_DIR}/app"
+readonly ARCHIVE="${WORK_DIR}/source.tar.gz"
+mkdir "$NEW_DIR"
+chown pidmark:pidmark "$NEW_DIR"
+
+echo "Descargando PID Mark $TAG desde GitHub..."
+curl --fail --location --silent --show-error \
+  "${ARCHIVE_BASE_URL}/${TAG}" \
+  --output "$ARCHIVE"
+tar -xzf "$ARCHIVE" --strip-components=1 -C "$NEW_DIR"
+
+new_version="$(node -p "require('${NEW_DIR}/package.json').version")"
+if [[ "$new_version" != "$requested_tag" ]]; then
+  echo "La etiqueta $TAG contiene la versión $new_version; se esperaba $requested_tag." >&2
+  exit 1
+fi
+if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" ]]; then
+  echo "La etiqueta descargada no contiene los archivos requeridos." >&2
+  exit 1
+fi
+
+chown -R pidmark:pidmark "$NEW_DIR"
+echo "Instalando dependencias de producción..."
+runuser -u pidmark -- env HOME="$DATA_DIR" npm --prefix "$NEW_DIR" ci --omit=dev --no-audit --no-fund
+chown -R root:pidmark "$NEW_DIR"
+
+BACKUP_DIR="/opt/pid-mark-backup-${current_version}-$(date +%Y%m%d-%H%M%S)"
+if [[ -e "$BACKUP_DIR" ]]; then
+  echo "La ruta de respaldo ya existe: $BACKUP_DIR" >&2
+  exit 1
+fi
+
+trap rollback_on_error EXIT
+echo "Deteniendo PID Mark..."
+systemctl stop "$SERVICE"
+mv -- "$APP_DIR" "$BACKUP_DIR"
+TRANSACTION_STARTED=1
+mv -- "$NEW_DIR" "$APP_DIR"
+
+echo "Iniciando PID Mark $TAG..."
+systemctl start "$SERVICE"
+
+healthy=0
+for _ in {1..30}; do
+  if response="$(curl --fail --silent --show-error --max-time 2 "$HEALTH_URL" 2>/dev/null)" \
+    && [[ "$response" == *"\"version\":\"${requested_tag}\""* ]]; then
+    healthy=1
+    break
+  fi
+  sleep 1
+done
+
+if (( ! healthy )); then
+  echo "PID Mark no confirmó la versión $requested_tag en ${HEALTH_URL}." >&2
+  exit 1
+fi
+
+TRANSACTION_STARTED=0
+trap - EXIT
+rm -rf -- "$WORK_DIR"
+WORK_DIR=""
+
+echo "Actualización completada: PID Mark $TAG."
+echo "Versión anterior conservada en: $BACKUP_DIR"
