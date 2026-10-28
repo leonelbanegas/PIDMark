@@ -11,6 +11,7 @@
 const express = require('express');
 const path = require('path');
 const open = require('open');
+const versionAplicacion = require('./package.json').version;
 
 const { cargarConfig, verificarRutas } = require('./src/config');
 const { inicializarDB, getDB } = require('./src/db');
@@ -39,7 +40,7 @@ function abortar(mensaje) {
 // ----------------------------------------------------------------
 
 async function main() {
-  log('Iniciando PID Marcador...');
+  log('Iniciando PID Mark v' + versionAplicacion + '...');
 
   // 1. Cargar configuración desde el INI
   let config;
@@ -204,7 +205,7 @@ async function main() {
 
   app.listen(puerto, host, async () => {
     const url = 'http://' + (host.includes(':') ? '[' + host + ']' : host) + ':' + puerto;
-    log('Servidor disponible en ' + url);
+    log('PID Mark v' + versionAplicacion + ' activo. Servidor disponible en ' + url);
     if (process.platform !== 'win32') {
       log('El servidor queda en segundo plano; configurá el acceso externo mediante un proxy HTTPS.');
       return;
