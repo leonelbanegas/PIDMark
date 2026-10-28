@@ -7,6 +7,43 @@
 // P&ID.
 
 // ============ Listados ============
+let ordenListadoPrincipal = { columna: null, direccion: 1 };
+const comparadorTextoListados = new Intl.Collator('es', {
+  numeric: true,
+  sensitivity: 'base'
+});
+
+function ordenarListadosPor(columna) {
+  if (ordenListadoPrincipal.columna === columna) {
+    ordenListadoPrincipal.direccion *= -1;
+  } else {
+    ordenListadoPrincipal = { columna: columna, direccion: 1 };
+  }
+  dibujarTablaListados();
+}
+
+function compararValoresListado(a, b, columna) {
+  if (columna === 'id' || columna === 'cantidad_pids' || columna === 'cantidad_items') {
+    return Number(a || 0) - Number(b || 0);
+  }
+  return comparadorTextoListados.compare(String(a || ''), String(b || ''));
+}
+
+function actualizarIndicadoresOrdenListados() {
+  document.querySelectorAll('#tablaListados thead th[data-ordenar]').forEach(function (th) {
+    const activo = th.dataset.ordenar === ordenListadoPrincipal.columna;
+    th.setAttribute('aria-sort', activo
+      ? (ordenListadoPrincipal.direccion === 1 ? 'ascending' : 'descending')
+      : 'none');
+    const indicador = th.querySelector('.indicadorOrdenListado');
+    if (indicador) {
+      indicador.textContent = activo
+        ? (ordenListadoPrincipal.direccion === 1 ? '↑' : '↓')
+        : '↕';
+    }
+  });
+}
+
 async function cargarListados() {
   const r = await fetchAPI('/api/listados');
   const d = await r.json();
@@ -31,6 +68,16 @@ function dibujarTablaListados() {
     const texto = (String(l.nombre) + ' ' + String(l.usuario) + ' ' + String(l.pids_busqueda || '') + ' #' + String(l.id) + ' ' + String(l.id)).toLowerCase();
     return texto.indexOf(filtro) !== -1 || texto.indexOf(filtroSinNumeral) !== -1;
   });
+  if (ordenListadoPrincipal.columna) {
+    const columna = ordenListadoPrincipal.columna;
+    visibles.sort(function (a, b) {
+      const resultado = compararValoresListado(a[columna], b[columna], columna);
+      return resultado === 0
+        ? Number(a.id) - Number(b.id)
+        : resultado * ordenListadoPrincipal.direccion;
+    });
+  }
+  actualizarIndicadoresOrdenListados();
 
   if (visibles.length === 0) {
     cuerpo.innerHTML = '';

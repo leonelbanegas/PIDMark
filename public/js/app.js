@@ -299,6 +299,12 @@ function irAPantallaPID() {
 function engancharEventos() {
   $('menuListados').onclick = irAPantallaListados;
   $('menuPID').onclick = irAPantallaPID;
+  const encabezadoListados = $('tablaListados').querySelector('thead');
+  encabezadoListados.addEventListener('click', function (e) {
+    if (e.target.closest('.resizerColumna')) return;
+    const th = e.target.closest('th[data-ordenar]');
+    if (th) ordenarListadosPor(th.dataset.ordenar);
+  });
 
   $('btnNuevo').onclick = accionNuevo;
   const btnCargarPID = $('btnCargarPID');

@@ -598,6 +598,14 @@ body.temaClaro .flechaArbolPid { color: #9aa0a6; }
   user-select: none;
 }
 
+.tabla thead th[data-ordenar] { cursor: pointer; }
+.indicadorOrdenListado {
+  color: #777;
+  font-size: 11px;
+  margin-left: 3px;
+}
+body.temaClaro .indicadorOrdenListado { color: #777; }
+
 .tabla thead th.columnaNumero {
   width: 1% !important;
   min-width: 40px;
