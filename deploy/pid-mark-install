@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly SERVICE="pid-mark"
+readonly APP_DIR="/opt/pid-mark"
+readonly DATA_DIR="/var/lib/pid-mark"
+readonly CONFIG_DIR="/etc/pid-mark"
+readonly CONFIG_FILE="${CONFIG_DIR}/config.ini"
+readonly SERVICE_FILE="/etc/systemd/system/${SERVICE}.service"
+readonly NODE_SOURCE_KEY="/etc/apt/keyrings/pid-mark-nodesource.gpg"
+readonly NODE_SOURCE_LIST="/etc/apt/sources.list.d/pid-mark-nodesource.list"
+readonly SOURCE_BASE_URL="https://codeload.github.com/leonelbanegas/PIDMark/tar.gz/refs/tags"
+readonly HEALTH_URL="http://127.0.0.1:4123/api/sesion"
+
+WORK_DIR=""
+
+cleanup() {
+  if [[ -n "$WORK_DIR" && -d "$WORK_DIR" ]]; then
+    rm -rf -- "$WORK_DIR"
+  fi
+}
+trap cleanup EXIT
+
+usage() {
+  echo "Uso: sudo bash pid-mark-install <version|tag>"
+  echo "Ejemplo: sudo bash pid-mark-install v1.0.2"
+}
+
+if (( EUID != 0 )); then
+  echo "Ejecuta el instalador con sudo." >&2
+  exit 1
+fi
+
+if (( $# != 1 )); then
+  usage >&2
+  exit 2
+fi
+
+requested_version="${1#v}"
+if [[ ! "$requested_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Versión inválida. Usa un formato como 1.0.2 o v1.0.2." >&2
+  exit 2
+fi
+readonly TAG="v${requested_version}"
+
+if [[ ! -r /etc/os-release ]]; then
+  echo "No se pudo identificar la distribución de Linux." >&2
+  exit 1
+fi
+# shellcheck disable=SC1091
+. /etc/os-release
+if [[ "${ID:-}" != "ubuntu" ]]; then
+  echo "Este instalador requiere Ubuntu Server." >&2
+  exit 1
+fi
+
+for command in apt-get chown chmod curl dpkg getent gpg install mktemp runuser systemctl tar useradd groupadd; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "Falta el comando requerido: $command" >&2
+    exit 1
+  fi
+done
+
+if [[ -e "$APP_DIR" || -e "$DATA_DIR" || -e "$CONFIG_FILE" || -e "$SERVICE_FILE" || -e /usr/local/sbin/pid-mark-update ]]; then
+  echo "Se detectó una instalación o datos existentes; no se modificó nada."
+  echo "Este instalador es solo para una instalación limpia. Usa el actualizador para actualizar."
+  exit 1
+fi
+if id pidmark >/dev/null 2>&1 || getent group pidmark >/dev/null 2>&1; then
+  echo "Ya existe el usuario o grupo pidmark; revisa el servidor antes de continuar." >&2
+  exit 1
+fi
+echo "Instalando herramientas requeridas..."
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg tar
+
+echo "Configurando el repositorio firmado de Node.js 22..."
+install -d -m 0755 /etc/apt/keyrings
+if [[ ! -f "$NODE_SOURCE_KEY" ]]; then
+  curl --fail --location --silent --show-error \
+    https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+    | gpg --dearmor --yes -o "$NODE_SOURCE_KEY"
+  chmod 0644 "$NODE_SOURCE_KEY"
+fi
+if ! gpg --show-keys "$NODE_SOURCE_KEY" >/dev/null 2>&1; then
+  echo "La clave del repositorio de Node.js no es válida: $NODE_SOURCE_KEY." >&2
+  exit 1
+fi
+node_source="deb [arch=$(dpkg --print-architecture) signed-by=${NODE_SOURCE_KEY}] https://deb.nodesource.com/node_22.x nodistro main"
+if [[ -f "$NODE_SOURCE_LIST" ]]; then
+  if ! grep --fixed-strings --line-regexp --quiet "$node_source" "$NODE_SOURCE_LIST"; then
+    echo "La lista de NodeSource existente no coincide; no se modificó." >&2
+    exit 1
+  fi
+else
+  printf '%s\n' "$node_source" > "$NODE_SOURCE_LIST"
+  chmod 0644 "$NODE_SOURCE_LIST"
+fi
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+
+for command in node npm; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "La instalación de Node.js no proporcionó el comando requerido: $command." >&2
+    exit 1
+  fi
+done
+if ! node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 13) ? 0 : 1)'; then
+  echo "Se requiere Node.js 22.13.0 o posterior; instalado: $(node --version)." >&2
+  exit 1
+fi
+
+WORK_DIR="$(mktemp -d /tmp/pid-mark-install.XXXXXX)"
+readonly ARCHIVE="${WORK_DIR}/source.tar.gz"
+readonly NEW_DIR="${WORK_DIR}/app"
+mkdir "$NEW_DIR"
+
+echo "Descargando PID Mark ${TAG} desde GitHub..."
+curl --fail --location --silent --show-error \
+  "${SOURCE_BASE_URL}/${TAG}" \
+  --output "$ARCHIVE"
+tar -xzf "$ARCHIVE" --strip-components=1 -C "$NEW_DIR"
+
+actual_version="$(node -p "require('${NEW_DIR}/package.json').version")"
+if [[ "$actual_version" != "$requested_version" ]]; then
+  echo "La etiqueta ${TAG} contiene la versión ${actual_version}; se esperaba ${requested_version}." >&2
+  exit 1
+fi
+if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/config.ubuntu.example.ini" || ! -f "${NEW_DIR}/deploy/pid-mark.service" || ! -f "${NEW_DIR}/deploy/pid-mark-update" ]]; then
+  echo "La etiqueta descargada no contiene todos los archivos requeridos." >&2
+  exit 1
+fi
+
+chown nobody:nogroup "$WORK_DIR"
+chown -R nobody:nogroup "$NEW_DIR"
+echo "Instalando dependencias de producción..."
+runuser -u nobody -- env HOME="$WORK_DIR" npm_config_cache="${WORK_DIR}/npm-cache" \
+  npm --prefix "$NEW_DIR" ci --omit=dev --no-audit --no-fund
+
+read -r -p "Usuario administrador de PID Mark [admin]: " ADMIN_USER
+ADMIN_USER="${ADMIN_USER:-admin}"
+if [[ "$ADMIN_USER" == *$'\n'* || "${#ADMIN_USER}" -gt 64 ]]; then
+  echo "El usuario debe tener como máximo 64 caracteres y no incluir saltos de línea." >&2
+  exit 1
+fi
+
+while true; do
+  read -r -s -p "Contraseña de PID Mark (mínimo 12 caracteres): " ADMIN_PASSWORD
+  printf '\n'
+  if (( ${#ADMIN_PASSWORD} < 12 )); then
+    echo "Usa una contraseña de al menos 12 caracteres." >&2
+    continue
+  fi
+  read -r -s -p "Repite la contraseña: " ADMIN_PASSWORD_CONFIRM
+  printf '\n'
+  if [[ "$ADMIN_PASSWORD" == "$ADMIN_PASSWORD_CONFIRM" ]]; then
+    break
+  fi
+  echo "Las contraseñas no coinciden. Intenta de nuevo." >&2
+done
+
+echo "Creando el usuario de servicio y las carpetas persistentes..."
+groupadd --system pidmark
+useradd --system --gid pidmark --home-dir "$DATA_DIR" --shell /usr/sbin/nologin pidmark
+install -d -o pidmark -g pidmark -m 0750 \
+  "$DATA_DIR" \
+  "${DATA_DIR}/imagenes" \
+  "${DATA_DIR}/backups" \
+  "${DATA_DIR}/logs"
+install -d -o root -g pidmark -m 0750 "$CONFIG_DIR"
+install -o root -g pidmark -m 0640 \
+  "${NEW_DIR}/config.ubuntu.example.ini" "$CONFIG_FILE"
+install -d -o root -g pidmark -m 0750 "$APP_DIR"
+cp -a "${NEW_DIR}/." "$APP_DIR/"
+chown -R root:pidmark "$APP_DIR"
+install -o root -g root -m 0644 \
+  "${NEW_DIR}/deploy/pid-mark.service" "$SERVICE_FILE"
+install -o root -g root -m 0755 \
+  "${NEW_DIR}/deploy/pid-mark-update" /usr/local/sbin/pid-mark-update
+
+if ! printf '%s\n%s\n' "$ADMIN_USER" "$ADMIN_PASSWORD" \
+  | runuser -u pidmark -- env PID_CONFIG="$CONFIG_FILE" node -e '
+      process.chdir("/opt/pid-mark");
+      const { cargarConfig } = require("./src/config");
+      const { inicializarDB, getDB } = require("./src/db");
+      const auth = require("./src/auth");
+      let input = "";
+      process.stdin.setEncoding("utf8");
+      process.stdin.on("data", chunk => input += chunk);
+      process.stdin.on("end", () => {
+        const [user, password] = input.split(/\r?\n/);
+        try {
+          const config = cargarConfig();
+          inicializarDB(config.Rutas.BaseDatos);
+          auth.crearOActualizarAdmin(getDB(), user, password);
+          console.log("Administrador de PID Mark creado.");
+        } catch (error) {
+          console.error("No se pudo crear el administrador:", error.message);
+          process.exitCode = 1;
+        }
+      });
+    '; then
+  unset ADMIN_PASSWORD ADMIN_PASSWORD_CONFIRM
+  echo "No se pudo crear el administrador; el servicio no se iniciará." >&2
+  exit 1
+fi
+unset ADMIN_PASSWORD ADMIN_PASSWORD_CONFIRM
+
+echo "Instalando y habilitando el servicio..."
+systemctl daemon-reload
+systemctl enable "$SERVICE"
+systemctl start "$SERVICE"
+
+healthy=0
+for _ in {1..30}; do
+  if response="$(curl --fail --silent --show-error --max-time 2 "$HEALTH_URL" 2>/dev/null)" \
+    && [[ "$response" == *"\"version\":\"${requested_version}\""* ]]; then
+    healthy=1
+    break
+  fi
+  sleep 1
+done
+
+if (( ! healthy )); then
+  echo "El servicio no confirmó la versión ${requested_version} en ${HEALTH_URL}." >&2
+  echo "Revisa los detalles con: sudo journalctl -u ${SERVICE} -n 50 --no-pager" >&2
+  exit 1
+fi
+
+echo "Instalación completada: PID Mark ${TAG} está activo y habilitado al iniciar Ubuntu."
+echo "El servicio escucha solo en 127.0.0.1:4123; no se expone directamente a la red."
