@@ -66,9 +66,9 @@ público para descargar el código sin credenciales. Descarga el archivo, revisa
 su contenido y ejecútalo como administrador:
 
 ```bash
-curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.0.5/deploy/pid-mark-install --output /tmp/pid-mark-install
+curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.0.6/deploy/pid-mark-install --output /tmp/pid-mark-install
 sed -n '1,240p' /tmp/pid-mark-install
-sudo bash /tmp/pid-mark-install v1.0.5
+sudo bash /tmp/pid-mark-install v1.0.6
 rm /tmp/pid-mark-install
 ```
 
@@ -104,7 +104,15 @@ posteriores, usa el actualizador descrito a continuación.
    <contraseña>` usando un procedimiento seguro para introducir la contraseña.
    No guardes esa contraseña en scripts o archivos de configuración.
 6. Copia `deploy/pid-mark.service` a `/etc/systemd/system/`, revisa usuario,
-   rutas y binario Node.js; luego ejecuta:
+   rutas y binario Node.js. Configura el banner de la consola con:
+
+   ```bash
+   sudo install -o root -g root -m 0755 deploy/pid-mark-console-banner /usr/local/sbin/pid-mark-console-banner
+   sudo install -d -o root -g root -m 0755 /etc/systemd/system/getty@tty1.service.d
+   sudo install -o root -g root -m 0644 deploy/pid-mark-console-banner.conf /etc/systemd/system/getty@tty1.service.d/50-pid-mark-console-banner.conf
+   ```
+
+   Luego ejecuta:
 
    ```bash
    sudo systemctl daemon-reload
@@ -120,6 +128,11 @@ sudo systemctl status pid-mark
 sudo journalctl -u pid-mark -b --no-pager
 ```
 
+En la consola local de Ubuntu, la línea `PIDMark` del banner previo al login
+también muestra el estado y la versión confirmada por el servicio. Se actualiza
+en cada arranque y al instalar o actualizar PID Mark; las demás líneas del
+banner, como IP y SSH, se conservan.
+
 El servicio escucha por defecto solo en `127.0.0.1:4123` y no intenta abrir
 Chrome. Configura Nginx o el proxy corporativo para terminar HTTPS y reenviar
 las solicitudes a `http://127.0.0.1:4123`. No expongas directamente el puerto
@@ -133,12 +146,11 @@ seguridad antes de cargar datos reales.
 ### Actualizar desde GitHub
 
 El repositorio debe ser público para descargar las etiquetas sin autenticación.
-El instalador de una instalación limpia ya deja el actualizador preparado. Si
-PID Mark se instaló antes de incluirlo, descárgalo e instálalo una sola vez
-desde una etiqueta que lo contenga:
+Antes de actualizar una instalación existente a esta versión, actualiza el
+comando de actualización para que instale el banner dinámico de la consola:
 
 ```bash
-curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.0.5/deploy/pid-mark-update --output /tmp/pid-mark-update &&
+curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.0.6/deploy/pid-mark-update --output /tmp/pid-mark-update &&
 sudo install -o root -g root -m 0755 /tmp/pid-mark-update /usr/local/sbin/pid-mark-update &&
 rm /tmp/pid-mark-update
 ```
@@ -150,7 +162,7 @@ carpeta con `sudo install -o root -g root -m 0755 deploy/pid-mark-update
 Después, para cada actualización, pasa la etiqueta publicada en GitHub:
 
 ```bash
-sudo pid-mark-update v1.0.5
+sudo pid-mark-update v1.0.6
 ```
 
 El actualizador descarga exclusivamente esa etiqueta, valida la versión y sus

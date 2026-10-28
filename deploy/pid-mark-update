@@ -14,7 +14,7 @@ TRANSACTION_STARTED=0
 
 usage() {
   echo "Uso: sudo pid-mark-update <version|tag>"
-  echo "Ejemplo: sudo pid-mark-update v1.0.4"
+  echo "Ejemplo: sudo pid-mark-update v1.0.6"
 }
 
 rollback_on_error() {
@@ -73,7 +73,7 @@ if [[ ! "$requested_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 readonly TAG="v${requested_tag}"
 
-for command in curl tar node npm runuser systemctl; do
+for command in curl install tar node npm runuser systemctl; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Falta el comando requerido: $command" >&2
     exit 1
@@ -130,7 +130,7 @@ if [[ "$new_version" != "$requested_tag" ]]; then
   echo "La etiqueta $TAG contiene la versión $new_version; se esperaba $requested_tag." >&2
   exit 1
 fi
-if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" ]]; then
+if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner.conf" ]]; then
   echo "La etiqueta descargada no contiene los archivos requeridos." >&2
   exit 1
 fi
@@ -172,6 +172,19 @@ if (( ! healthy )); then
   echo "PID Mark no confirmó la versión $requested_tag en ${HEALTH_URL}." >&2
   exit 1
 fi
+
+install -o root -g root -m 0755 \
+  "${APP_DIR}/deploy/pid-mark-console-banner" \
+  /usr/local/sbin/pid-mark-console-banner
+install -d -o root -g root -m 0755 \
+  /etc/systemd/system/getty@tty1.service.d
+install -o root -g root -m 0644 \
+  "${APP_DIR}/deploy/pid-mark-console-banner.conf" \
+  /etc/systemd/system/getty@tty1.service.d/50-pid-mark-console-banner.conf
+systemctl daemon-reload
+install -o root -g root -m 0755 \
+  "${APP_DIR}/deploy/pid-mark-update" /usr/local/sbin/pid-mark-update
+/usr/local/sbin/pid-mark-console-banner
 
 TRANSACTION_STARTED=0
 trap - EXIT

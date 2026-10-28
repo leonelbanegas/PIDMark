@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 usage() {
   echo "Uso: sudo bash pid-mark-install <version|tag>"
-  echo "Ejemplo: sudo bash pid-mark-install v1.0.4"
+  echo "Ejemplo: sudo bash pid-mark-install v1.0.6"
 }
 
 if (( EUID != 0 )); then
@@ -38,7 +38,7 @@ fi
 
 requested_version="${1#v}"
 if [[ ! "$requested_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Versión inválida. Usa un formato como 1.0.4 o v1.0.4." >&2
+  echo "Versión inválida. Usa un formato como 1.0.6 o v1.0.6." >&2
   exit 2
 fi
 readonly TAG="v${requested_version}"
@@ -126,7 +126,7 @@ if [[ "$actual_version" != "$requested_version" ]]; then
   echo "La etiqueta ${TAG} contiene la versión ${actual_version}; se esperaba ${requested_version}." >&2
   exit 1
 fi
-if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/config.ubuntu.example.ini" || ! -f "${NEW_DIR}/deploy/pid-mark.service" || ! -f "${NEW_DIR}/deploy/pid-mark-update" ]]; then
+if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/config.ubuntu.example.ini" || ! -f "${NEW_DIR}/deploy/pid-mark.service" || ! -f "${NEW_DIR}/deploy/pid-mark-update" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner.conf" ]]; then
   echo "La etiqueta descargada no contiene todos los archivos requeridos." >&2
   exit 1
 fi
@@ -177,6 +177,13 @@ install -o root -g root -m 0644 \
   "${NEW_DIR}/deploy/pid-mark.service" "$SERVICE_FILE"
 install -o root -g root -m 0755 \
   "${NEW_DIR}/deploy/pid-mark-update" /usr/local/sbin/pid-mark-update
+install -o root -g root -m 0755 \
+  "${NEW_DIR}/deploy/pid-mark-console-banner" /usr/local/sbin/pid-mark-console-banner
+install -d -o root -g root -m 0755 \
+  /etc/systemd/system/getty@tty1.service.d
+install -o root -g root -m 0644 \
+  "${NEW_DIR}/deploy/pid-mark-console-banner.conf" \
+  /etc/systemd/system/getty@tty1.service.d/50-pid-mark-console-banner.conf
 
 if ! printf '%s\n%s\n' "$ADMIN_USER" "$ADMIN_PASSWORD" \
   | runuser -u pidmark -- env PID_CONFIG="$CONFIG_FILE" node -e '
@@ -228,6 +235,8 @@ if (( ! healthy )); then
   echo "Revisa los detalles con: sudo journalctl -u ${SERVICE} -n 50 --no-pager" >&2
   exit 1
 fi
+
+/usr/local/sbin/pid-mark-console-banner
 
 echo "Instalación completada: PID Mark ${TAG} está activo y habilitado al iniciar Ubuntu."
 echo "El servicio escucha solo en 127.0.0.1:4123; no se expone directamente a la red."

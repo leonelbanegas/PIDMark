@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly SERVICE="pid-mark"
+readonly HEALTH_URL="http://127.0.0.1:4123/api/sesion"
+readonly ISSUE_FILE="${PID_MARK_ISSUE_FILE:-/etc/issue}"
+readonly CHROME_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+status="INACTIVO"
+if systemctl is-active --quiet "$SERVICE"; then
+  version=""
+  for _ in {1..10}; do
+    if response="$(curl --fail --silent --show-error --max-time 1 \
+      --user-agent "$CHROME_USER_AGENT" "$HEALTH_URL" 2>/dev/null)" \
+      && version="$(printf '%s' "$response" | node -e '
+        let body = "";
+        process.stdin.setEncoding("utf8");
+        process.stdin.on("data", chunk => body += chunk);
+        process.stdin.on("end", () => {
+          try {
+            const version = JSON.parse(body).version;
+            if (typeof version === "string" && version.length > 0) {
+              process.stdout.write(version);
+            }
+          } catch {}
+        });
+      ')" \
+      && [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      status="ACTIVO (v${version})"
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$status" == "INACTIVO" ]]; then
+    status="ACTIVO (versión no confirmada)"
+  fi
+fi
+
+node - "$ISSUE_FILE" "$status" <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const issueFile = process.argv[2];
+const status = process.argv[3];
+let original = '';
+let mode = 0o644;
+try {
+  const stat = fs.statSync(issueFile);
+  original = fs.readFileSync(issueFile, 'utf8');
+  mode = stat.mode & 0o777;
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+}
+
+const eol = original.includes('\r\n') ? '\r\n' : '\n';
+const hadTrailingNewline = original.endsWith('\n');
+const lines = original ? original.split(/\r?\n/) : [];
+if (hadTrailingNewline) lines.pop();
+
+const bannerLine = `PIDMark            : ${status}`;
+let replaced = false;
+for (let i = 0; i < lines.length; i += 1) {
+  if (/^\s*PIDMark\s*:/i.test(lines[i])) {
+    lines[i] = bannerLine;
+    replaced = true;
+  }
+}
+if (!replaced) lines.push(bannerLine);
+
+const contents = lines.join(eol) + (hadTrailingNewline || !original ? eol : '');
+const tempFile = path.join(path.dirname(issueFile), `.issue.pidmark.${process.pid}`);
+try {
+  fs.writeFileSync(tempFile, contents, { mode });
+  fs.chmodSync(tempFile, mode);
+  fs.renameSync(tempFile, issueFile);
+} catch (error) {
+  try { fs.unlinkSync(tempFile); } catch {}
+  throw error;
+}
+
+console.log(`PID Mark console status updated: ${status}`);
+NODE
