@@ -14,7 +14,7 @@ TRANSACTION_STARTED=0
 
 usage() {
   echo "Uso: sudo pid-mark-update <version|tag> [commit-sha]"
-  echo "Ejemplo: sudo pid-mark-update v1.1.1"
+  echo "Ejemplo: sudo pid-mark-update v1.1.2"
 }
 
 rollback_on_error() {
@@ -82,7 +82,7 @@ if [[ -n "$commit_sha" ]]; then
   archive_ref="$commit_sha"
 fi
 
-for command in curl install tar node npm runuser systemctl systemd-tmpfiles visudo; do
+for command in curl install tar node npm runuser systemctl systemd-tmpfiles; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Falta el comando requerido: $command" >&2
     exit 1
@@ -139,7 +139,7 @@ if [[ "$new_version" != "$requested_tag" ]]; then
   echo "La etiqueta $TAG contiene la versión $new_version; se esperaba $requested_tag." >&2
   exit 1
 fi
-if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/deploy/pid-mark.service" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner.conf" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.js" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.service" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.sudoers" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.tmpfiles" ]]; then
+if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/deploy/pid-mark.service" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner.conf" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.js" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.service" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.path" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.tmpfiles" ]]; then
   echo "La etiqueta descargada no contiene los archivos requeridos." >&2
   exit 1
 fi
@@ -197,18 +197,12 @@ install -o root -g root -m 0755 \
 install -o root -g root -m 0644 \
   "${APP_DIR}/deploy/pid-mark-web-update.service" \
   /etc/systemd/system/pid-mark-web-update.service
-sudoers_tmp="$(mktemp /etc/sudoers.d/.pid-mark-web-update.XXXXXX)"
-install -o root -g root -m 0440 \
-  "${APP_DIR}/deploy/pid-mark-web-update.sudoers" "$sudoers_tmp"
-if ! visudo -cf "$sudoers_tmp"; then
-  rm -f -- "$sudoers_tmp"
-  echo "La regla sudoers para la actualización web no pasó la validación." >&2
-  exit 1
-fi
-install -o root -g root -m 0440 \
-  "$sudoers_tmp" /etc/sudoers.d/pid-mark-web-update
-rm -f -- "$sudoers_tmp"
+install -o root -g root -m 0644 \
+  "${APP_DIR}/deploy/pid-mark-web-update.path" \
+  /etc/systemd/system/pid-mark-web-update.path
+rm -f -- /etc/sudoers.d/pid-mark-web-update
 systemctl daemon-reload
+systemctl enable --now pid-mark-web-update.path
 install -o root -g root -m 0755 \
   "${APP_DIR}/deploy/pid-mark-console-banner" \
   /usr/local/sbin/pid-mark-console-banner

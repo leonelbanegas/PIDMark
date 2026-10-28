@@ -1,1 +1,0 @@
-pidmark ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block pid-mark-web-update.service

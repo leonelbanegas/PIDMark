@@ -6,7 +6,6 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { execFile } = require('child_process');
 const { getDB } = require('./db');
 const auth = require('./auth');
 const sesiones = require('./sesiones');
@@ -81,7 +80,7 @@ function verificarSoporteActualizacionWeb(req, res) {
   if (path.resolve(datos || '') !== '/var/lib/pid-mark' ||
       !fs.existsSync(RUTA_ACTUALIZADOR_WEB) ||
       !fs.existsSync('/etc/systemd/system/pid-mark-web-update.service') ||
-      !fs.existsSync('/etc/sudoers.d/pid-mark-web-update') ||
+  !fs.existsSync('/etc/systemd/system/pid-mark-web-update.path') ||
       !fs.existsSync('/etc/tmpfiles.d/pid-mark-web-update.conf')) {
     res.status(503).json({
       error: 'La actualización desde la aplicación no está configurada en este servidor. Actualiza PID Mark desde SSH.'
@@ -89,20 +88,6 @@ function verificarSoporteActualizacionWeb(req, res) {
     return false;
   }
   return true;
-}
-
-function ejecutarComando(ruta, argumentos) {
-  return new Promise(function (resolve, reject) {
-    execFile(ruta, argumentos, { timeout: 10000 }, function (error, stdout, stderr) {
-      if (error) {
-        error.stdout = stdout;
-        error.stderr = stderr;
-        reject(error);
-      } else {
-        resolve({ stdout: stdout, stderr: stderr });
-      }
-    });
-  });
 }
 
 async function verificarZipGitHub(version, archivo) {
@@ -158,9 +143,6 @@ async function solicitarActualizacionWeb(version, commitSha, source, sha256, res
     if (sha256) solicitud.sha256 = sha256;
     fs.writeFileSync(temporal, JSON.stringify(solicitud), { mode: 0o600, flag: 'wx' });
     fs.renameSync(temporal, RUTA_SOLICITUD_ACTUALIZACION);
-    await ejecutarComando('/usr/bin/sudo', [
-      '-n', '/usr/bin/systemctl', 'start', '--no-block', 'pid-mark-web-update.service'
-    ]);
     res.status(202).json({
       ok: true,
       version: version,

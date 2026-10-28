@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 usage() {
   echo "Uso: sudo bash pid-mark-install <version|tag>"
-  echo "Ejemplo: sudo bash pid-mark-install v1.1.1"
+  echo "Ejemplo: sudo bash pid-mark-install v1.1.2"
 }
 
 if (( EUID != 0 )); then
@@ -38,7 +38,7 @@ fi
 
 requested_version="${1#v}"
 if [[ ! "$requested_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Versión inválida. Usa un formato como 1.1.1 o v1.1.1." >&2
+  echo "Versión inválida. Usa un formato como 1.1.2 o v1.1.2." >&2
   exit 2
 fi
 readonly TAG="v${requested_version}"
@@ -54,7 +54,7 @@ if [[ "${ID:-}" != "ubuntu" ]]; then
   exit 1
 fi
 
-for command in apt-get chown chmod curl dpkg getent gpg install mktemp runuser systemctl systemd-tmpfiles tar useradd groupadd visudo; do
+for command in apt-get chown chmod curl dpkg getent gpg install mktemp runuser systemctl systemd-tmpfiles tar useradd groupadd; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Falta el comando requerido: $command" >&2
     exit 1
@@ -126,7 +126,7 @@ if [[ "$actual_version" != "$requested_version" ]]; then
   echo "La etiqueta ${TAG} contiene la versión ${actual_version}; se esperaba ${requested_version}." >&2
   exit 1
 fi
-if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/config.ubuntu.example.ini" || ! -f "${NEW_DIR}/deploy/pid-mark.service" || ! -f "${NEW_DIR}/deploy/pid-mark-update" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.js" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.service" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.sudoers" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.tmpfiles" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner.conf" ]]; then
+if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/config.ubuntu.example.ini" || ! -f "${NEW_DIR}/deploy/pid-mark.service" || ! -f "${NEW_DIR}/deploy/pid-mark-update" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.js" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.service" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.path" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.tmpfiles" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner.conf" ]]; then
   echo "La etiqueta descargada no contiene todos los archivos requeridos." >&2
   exit 1
 fi
@@ -183,19 +183,12 @@ install -o root -g root -m 0644 \
   "${NEW_DIR}/deploy/pid-mark-web-update.service" \
   /etc/systemd/system/pid-mark-web-update.service
 install -o root -g root -m 0644 \
+  "${NEW_DIR}/deploy/pid-mark-web-update.path" \
+  /etc/systemd/system/pid-mark-web-update.path
+install -o root -g root -m 0644 \
   "${NEW_DIR}/deploy/pid-mark-web-update.tmpfiles" \
   /etc/tmpfiles.d/pid-mark-web-update.conf
-sudoers_tmp="$(mktemp /etc/sudoers.d/.pid-mark-web-update.XXXXXX)"
-install -o root -g root -m 0440 \
-  "${NEW_DIR}/deploy/pid-mark-web-update.sudoers" "$sudoers_tmp"
-if ! visudo -cf "$sudoers_tmp"; then
-  rm -f -- "$sudoers_tmp"
-  echo "La regla sudoers para la actualización web no pasó la validación." >&2
-  exit 1
-fi
-install -o root -g root -m 0440 \
-  "$sudoers_tmp" /etc/sudoers.d/pid-mark-web-update
-rm -f -- "$sudoers_tmp"
+rm -f -- /etc/sudoers.d/pid-mark-web-update
 install -o root -g root -m 0755 \
   "${NEW_DIR}/deploy/pid-mark-console-banner" /usr/local/sbin/pid-mark-console-banner
 install -d -o root -g root -m 0755 \
@@ -235,6 +228,7 @@ unset ADMIN_PASSWORD ADMIN_PASSWORD_CONFIRM
 
 echo "Instalando y habilitando el servicio..."
 systemctl daemon-reload
+systemctl enable --now pid-mark-web-update.path
 systemctl enable "$SERVICE"
 systemctl start "$SERVICE"
 
