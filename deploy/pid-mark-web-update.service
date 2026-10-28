@@ -1,0 +1,9 @@
+[Unit]
+Description=PID Mark administrator-triggered updater
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/node /usr/local/sbin/pid-mark-web-update.js
+TimeoutStartSec=15min

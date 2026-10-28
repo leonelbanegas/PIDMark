@@ -6,15 +6,15 @@ readonly DATA_DIR="/var/lib/pid-mark"
 readonly CONFIG_FILE="/etc/pid-mark/config.ini"
 readonly SERVICE="pid-mark"
 readonly HEALTH_URL="http://127.0.0.1:4123/api/sesion"
-readonly ARCHIVE_BASE_URL="https://codeload.github.com/leonelbanegas/PIDMark/tar.gz/refs/tags"
+readonly ARCHIVE_BASE_URL="https://codeload.github.com/leonelbanegas/PIDMark/tar.gz"
 
 WORK_DIR=""
 BACKUP_DIR=""
 TRANSACTION_STARTED=0
 
 usage() {
-  echo "Uso: sudo pid-mark-update <version|tag>"
-  echo "Ejemplo: sudo pid-mark-update v1.0.6"
+  echo "Uso: sudo pid-mark-update <version|tag> [commit-sha]"
+  echo "Ejemplo: sudo pid-mark-update v1.1.0"
 }
 
 rollback_on_error() {
@@ -60,7 +60,7 @@ if (( EUID != 0 )); then
   exit 1
 fi
 
-if (( $# != 1 )); then
+if (( $# < 1 || $# > 2 )); then
   usage >&2
   exit 2
 fi
@@ -72,8 +72,17 @@ if [[ ! "$requested_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 2
 fi
 readonly TAG="v${requested_tag}"
+commit_sha="${2:-}"
+if [[ -n "$commit_sha" && ! "$commit_sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
+  echo "El commit debe ser un SHA hexadecimal de 40 caracteres." >&2
+  exit 2
+fi
+archive_ref="refs/tags/${TAG}"
+if [[ -n "$commit_sha" ]]; then
+  archive_ref="$commit_sha"
+fi
 
-for command in curl install tar node npm runuser systemctl; do
+for command in curl install tar node npm runuser systemctl systemd-tmpfiles visudo; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Falta el comando requerido: $command" >&2
     exit 1
@@ -121,7 +130,7 @@ chown pidmark:pidmark "$NEW_DIR"
 
 echo "Descargando PID Mark $TAG desde GitHub..."
 curl --fail --location --silent --show-error \
-  "${ARCHIVE_BASE_URL}/${TAG}" \
+  "${ARCHIVE_BASE_URL}/${archive_ref}" \
   --output "$ARCHIVE"
 tar -xzf "$ARCHIVE" --strip-components=1 -C "$NEW_DIR"
 
@@ -130,7 +139,7 @@ if [[ "$new_version" != "$requested_tag" ]]; then
   echo "La etiqueta $TAG contiene la versión $new_version; se esperaba $requested_tag." >&2
   exit 1
 fi
-if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner.conf" ]]; then
+if [[ ! -f "${NEW_DIR}/server.js" || ! -f "${NEW_DIR}/package-lock.json" || ! -f "${NEW_DIR}/deploy/pid-mark.service" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner" || ! -f "${NEW_DIR}/deploy/pid-mark-console-banner.conf" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.js" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.service" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.sudoers" || ! -f "${NEW_DIR}/deploy/pid-mark-web-update.tmpfiles" ]]; then
   echo "La etiqueta descargada no contiene los archivos requeridos." >&2
   exit 1
 fi
@@ -145,6 +154,14 @@ if [[ -e "$BACKUP_DIR" ]]; then
   echo "La ruta de respaldo ya existe: $BACKUP_DIR" >&2
   exit 1
 fi
+
+install -o root -g root -m 0644 \
+  "${NEW_DIR}/deploy/pid-mark-web-update.tmpfiles" \
+  /etc/tmpfiles.d/pid-mark-web-update.conf
+systemd-tmpfiles --create /etc/tmpfiles.d/pid-mark-web-update.conf
+install -o root -g root -m 0644 \
+  "${NEW_DIR}/deploy/pid-mark.service" "/etc/systemd/system/${SERVICE}.service"
+systemctl daemon-reload
 
 trap rollback_on_error EXIT
 echo "Deteniendo PID Mark..."
@@ -174,6 +191,25 @@ if (( ! healthy )); then
 fi
 
 install -o root -g root -m 0755 \
+  "${APP_DIR}/deploy/pid-mark-update" /usr/local/sbin/pid-mark-update
+install -o root -g root -m 0755 \
+  "${APP_DIR}/deploy/pid-mark-web-update.js" /usr/local/sbin/pid-mark-web-update.js
+install -o root -g root -m 0644 \
+  "${APP_DIR}/deploy/pid-mark-web-update.service" \
+  /etc/systemd/system/pid-mark-web-update.service
+sudoers_tmp="$(mktemp /etc/sudoers.d/.pid-mark-web-update.XXXXXX)"
+install -o root -g root -m 0440 \
+  "${APP_DIR}/deploy/pid-mark-web-update.sudoers" "$sudoers_tmp"
+if ! visudo -cf "$sudoers_tmp"; then
+  rm -f -- "$sudoers_tmp"
+  echo "La regla sudoers para la actualización web no pasó la validación." >&2
+  exit 1
+fi
+install -o root -g root -m 0440 \
+  "$sudoers_tmp" /etc/sudoers.d/pid-mark-web-update
+rm -f -- "$sudoers_tmp"
+systemctl daemon-reload
+install -o root -g root -m 0755 \
   "${APP_DIR}/deploy/pid-mark-console-banner" \
   /usr/local/sbin/pid-mark-console-banner
 install -d -o root -g root -m 0755 \
@@ -182,8 +218,6 @@ install -o root -g root -m 0644 \
   "${APP_DIR}/deploy/pid-mark-console-banner.conf" \
   /etc/systemd/system/getty@tty1.service.d/50-pid-mark-console-banner.conf
 systemctl daemon-reload
-install -o root -g root -m 0755 \
-  "${APP_DIR}/deploy/pid-mark-update" /usr/local/sbin/pid-mark-update
 /usr/local/sbin/pid-mark-console-banner
 
 TRANSACTION_STARTED=0

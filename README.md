@@ -66,9 +66,9 @@ público para descargar el código sin credenciales. Descarga el archivo, revisa
 su contenido y ejecútalo como administrador:
 
 ```bash
-curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.0.6/deploy/pid-mark-install --output /tmp/pid-mark-install
+curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.1.0/deploy/pid-mark-install --output /tmp/pid-mark-install
 sed -n '1,240p' /tmp/pid-mark-install
-sudo bash /tmp/pid-mark-install v1.0.6
+sudo bash /tmp/pid-mark-install v1.1.0
 rm /tmp/pid-mark-install
 ```
 
@@ -147,22 +147,28 @@ seguridad antes de cargar datos reales.
 
 El repositorio debe ser público para descargar las etiquetas sin autenticación.
 Antes de actualizar una instalación existente a esta versión, actualiza el
-comando de actualización para que instale el banner dinámico de la consola:
+comando de actualización para instalar la integración del banner y el
+actualizador web:
 
 ```bash
-curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.0.6/deploy/pid-mark-update --output /tmp/pid-mark-update &&
+curl --fail --location https://raw.githubusercontent.com/leonelbanegas/PIDMark/v1.1.0/deploy/pid-mark-update --output /tmp/pid-mark-update &&
 sudo install -o root -g root -m 0755 /tmp/pid-mark-update /usr/local/sbin/pid-mark-update &&
 rm /tmp/pid-mark-update
+
+sudo pid-mark-update v1.1.0
 ```
 
-Si el proyecto ya está disponible en el servidor, se puede instalar desde su
-carpeta con `sudo install -o root -g root -m 0755 deploy/pid-mark-update
-/usr/local/sbin/pid-mark-update`.
+Después de esta actualización, los administradores pueden abrir **Usuarios** y
+usar el panel **Actualizar PID Mark** para elegir una etiqueta y actualizar
+directamente desde GitHub, o subir el ZIP fuente de esa etiqueta. El ZIP se
+compara byte por byte con el archivo fuente oficial de GitHub antes de aceptar
+la actualización. Ambas opciones conservan el rollback y reinician el servicio;
+el servidor puede quedar temporalmente inaccesible.
 
-Después, para cada actualización, pasa la etiqueta publicada en GitHub:
+La actualización también se puede ejecutar por SSH:
 
 ```bash
-sudo pid-mark-update v1.0.6
+sudo pid-mark-update v1.1.0
 ```
 
 El actualizador descarga exclusivamente esa etiqueta, valida la versión y sus

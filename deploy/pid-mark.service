@@ -18,7 +18,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/pid-mark
+ReadWritePaths=/var/lib/pid-mark /run/pid-mark-web-update-lock
 
 [Install]
 WantedBy=multi-user.target

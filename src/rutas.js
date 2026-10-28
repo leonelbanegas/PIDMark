@@ -2,8 +2,11 @@
 // Rutas HTTP de la API del PID Marcador
 // ================================================================
 
+const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const { execFile } = require('child_process');
 const { getDB } = require('./db');
 const auth = require('./auth');
 const sesiones = require('./sesiones');
@@ -11,6 +14,171 @@ const pid = require('./pid');
 const pdfarender = require('./pdfarender');
 const PDFDocument = require('pdfkit');
 const versionAplicacion = require('../package.json').version;
+const REPOSITORIO_GITHUB = 'leonelbanegas/PIDMark';
+const RUTA_ACTUALIZADOR_WEB = '/usr/local/sbin/pid-mark-web-update.js';
+const RUTA_ESTADO_ACTUALIZACION = '/run/pid-mark-web-update';
+const RUTA_BLOQUEO_ACTUALIZACION = '/run/pid-mark-web-update-lock/request.lock';
+const RUTA_SOLICITUD_ACTUALIZACION = '/var/lib/pid-mark/web-update-request.json';
+const TAMANO_MAX_ZIP_ACTUALIZACION = 100 * 1024 * 1024;
+
+function compararVersiones(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i += 1) {
+    if (pa[i] !== pb[i]) return pa[i] - pb[i];
+  }
+  return 0;
+}
+
+async function obtenerEtiquetasGitHub() {
+  const respuesta = await fetch(
+    'https://api.github.com/repos/' + REPOSITORIO_GITHUB + '/tags?per_page=100',
+    {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'PID-Mark-Updater'
+      },
+      signal: AbortSignal.timeout(15000)
+    }
+  );
+  if (!respuesta.ok) throw new Error('GitHub respondió HTTP ' + respuesta.status + '.');
+  const etiquetas = await respuesta.json();
+  return etiquetas
+    .filter(function (etiqueta) {
+      return /^v\d+\.\d+\.\d+$/.test(etiqueta.name || '') &&
+        /^[0-9a-f]{40}$/i.test(etiqueta.commit && etiqueta.commit.sha || '');
+    })
+    .map(function (etiqueta) {
+      return { version: etiqueta.name.slice(1), commitSha: etiqueta.commit.sha.toLowerCase() };
+    })
+    .sort(function (a, b) { return compararVersiones(b.version, a.version); });
+}
+
+function leerEstadoActualizacionWeb() {
+  const resultado = { state: 'idle', version: '', message: '', output: '' };
+  try {
+    Object.assign(resultado, JSON.parse(fs.readFileSync(
+      path.join(RUTA_ESTADO_ACTUALIZACION, 'status.json'), 'utf8'
+    )));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  try {
+    const salida = fs.readFileSync(path.join(RUTA_ESTADO_ACTUALIZACION, 'output.log'), 'utf8');
+    resultado.output = salida.slice(-12000);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  return resultado;
+}
+
+function verificarSoporteActualizacionWeb(req, res) {
+  if (process.platform !== 'linux') {
+    res.status(501).json({ error: 'La actualización desde la aplicación solo está disponible en Ubuntu Server.' });
+    return false;
+  }
+  const datos = req.contexto.config.Rutas.CarpetaDatos;
+  if (path.resolve(datos || '') !== '/var/lib/pid-mark' ||
+      !fs.existsSync(RUTA_ACTUALIZADOR_WEB) ||
+      !fs.existsSync('/etc/systemd/system/pid-mark-web-update.service') ||
+      !fs.existsSync('/etc/sudoers.d/pid-mark-web-update') ||
+      !fs.existsSync('/etc/tmpfiles.d/pid-mark-web-update.conf')) {
+    res.status(503).json({
+      error: 'La actualización desde la aplicación no está configurada en este servidor. Actualiza PID Mark desde SSH.'
+    });
+    return false;
+  }
+  return true;
+}
+
+function ejecutarComando(ruta, argumentos) {
+  return new Promise(function (resolve, reject) {
+    execFile(ruta, argumentos, { timeout: 10000 }, function (error, stdout, stderr) {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+      } else {
+        resolve({ stdout: stdout, stderr: stderr });
+      }
+    });
+  });
+}
+
+async function verificarZipGitHub(version, archivo) {
+  const url = 'https://codeload.github.com/' + REPOSITORIO_GITHUB +
+    '/zip/refs/tags/v' + version;
+  const respuesta = await fetch(url, { signal: AbortSignal.timeout(60000) });
+  if (!respuesta.ok) throw new Error('No se pudo descargar el ZIP oficial de GitHub (HTTP ' + respuesta.status + ').');
+  const longitud = Number(respuesta.headers.get('content-length') || 0);
+  if (longitud > TAMANO_MAX_ZIP_ACTUALIZACION) {
+    throw new Error('El ZIP oficial supera el tamaño máximo permitido.');
+  }
+  const lector = respuesta.body.getReader();
+  const partes = [];
+  let total = 0;
+  while (true) {
+    const parte = await lector.read();
+    if (parte.done) break;
+    total += parte.value.byteLength;
+    if (total > TAMANO_MAX_ZIP_ACTUALIZACION) {
+      await lector.cancel();
+      throw new Error('El ZIP oficial supera el tamaño máximo permitido.');
+    }
+    partes.push(Buffer.from(parte.value));
+  }
+  const oficial = Buffer.concat(partes, total);
+  const hashSubido = crypto.createHash('sha256').update(archivo).digest();
+  const hashOficial = crypto.createHash('sha256').update(oficial).digest();
+  if (!crypto.timingSafeEqual(hashSubido, hashOficial)) {
+    throw new Error('El archivo no coincide exactamente con el ZIP fuente oficial de esa etiqueta de GitHub.');
+  }
+  return crypto.createHash('sha256').update(archivo).digest('hex');
+}
+
+async function solicitarActualizacionWeb(version, commitSha, source, sha256, res) {
+  if (version === versionAplicacion || compararVersiones(version, versionAplicacion) < 0) {
+    return res.status(400).json({ error: 'Selecciona una versión más nueva que la instalada.' });
+  }
+
+  let lockFd;
+  try {
+    lockFd = fs.openSync(RUTA_BLOQUEO_ACTUALIZACION, 'wx', 0o600);
+    fs.closeSync(lockFd);
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      return res.status(409).json({ error: 'Ya hay una actualización en curso.' });
+    }
+    throw error;
+  }
+
+  const temporal = RUTA_SOLICITUD_ACTUALIZACION + '.' + process.pid + '.tmp';
+  try {
+    const solicitud = { version: version, commitSha: commitSha, source: source };
+    if (sha256) solicitud.sha256 = sha256;
+    fs.writeFileSync(temporal, JSON.stringify(solicitud), { mode: 0o600, flag: 'wx' });
+    fs.renameSync(temporal, RUTA_SOLICITUD_ACTUALIZACION);
+    await ejecutarComando('/usr/bin/sudo', [
+      '-n', '/usr/bin/systemctl', 'start', '--no-block', 'pid-mark-web-update.service'
+    ]);
+    res.status(202).json({
+      ok: true,
+      version: version,
+      message: 'Actualización iniciada. PID Mark se reiniciará durante el proceso.'
+    });
+  } catch (error) {
+    try { fs.unlinkSync(temporal); } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') console.error('No se pudo limpiar solicitud temporal:', cleanupError);
+    }
+    try { fs.unlinkSync(RUTA_SOLICITUD_ACTUALIZACION); } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') console.error('No se pudo limpiar la solicitud:', cleanupError);
+    }
+    try { fs.unlinkSync(RUTA_BLOQUEO_ACTUALIZACION); } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') console.error('No se pudo liberar el bloqueo:', cleanupError);
+    }
+    throw error;
+  }
+}
 
 const LARGO_MAX_DESCRIPCION_LISTADO = 1000;
 const CANT_COLORES_LINEA = 10;
@@ -309,12 +477,94 @@ module.exports = function (app) {
       puedeGestionarPid: !!req.contexto.puedeGestionarPid,
       usuarioId: req.contexto.usuarioId || null,
       modoAuth: req.contexto.modoAuth,
+      plataforma: process.platform,
       autenticado: req.contexto.autenticado,
       debeCambiarPassword: !!req.contexto.debeCambiarPassword,
       version: versionAplicacion,
       config: { Marcadores: c.Marcadores, Lupa: c.Lupa, Interfaz: c.Interfaz }
     });
   });
+
+  app.get('/api/admin/actualizaciones', async function (req, res) {
+    if (!req.contexto.admin) return res.status(403).json({ error: 'Solo admin.' });
+    if (!verificarSoporteActualizacionWeb(req, res)) return;
+    try {
+      const etiquetas = await obtenerEtiquetasGitHub();
+      res.json({
+        versionActual: versionAplicacion,
+        ultimaVersion: etiquetas.length ? etiquetas[0].version : versionAplicacion,
+        etiquetas: etiquetas,
+        estado: leerEstadoActualizacionWeb()
+      });
+    } catch (error) {
+      res.status(502).json({ error: 'No se pudo consultar GitHub: ' + error.message });
+    }
+  });
+
+  app.get('/api/admin/actualizaciones/estado', function (req, res) {
+    if (!req.contexto.admin) return res.status(403).json({ error: 'Solo admin.' });
+    if (!verificarSoporteActualizacionWeb(req, res)) return;
+    try {
+      res.json({
+        versionActual: versionAplicacion,
+        estado: leerEstadoActualizacionWeb()
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'No se pudo leer el estado de actualización: ' + error.message });
+    }
+  });
+
+  app.post('/api/admin/actualizaciones/github', async function (req, res) {
+    if (!req.contexto.admin) return res.status(403).json({ error: 'Solo admin.' });
+    if (!verificarSoporteActualizacionWeb(req, res)) return;
+    const version = String(req.body && req.body.version || '').trim();
+    if (!/^\d+\.\d+\.\d+$/.test(version)) {
+      return res.status(400).json({ error: 'La versión solicitada no es válida.' });
+    }
+    try {
+      const etiquetas = await obtenerEtiquetasGitHub();
+      const etiqueta = etiquetas.find(function (item) { return item.version === version; });
+      if (!etiqueta) return res.status(404).json({ error: 'La versión no está publicada como etiqueta en GitHub.' });
+      await solicitarActualizacionWeb(version, etiqueta.commitSha, 'github', null, res);
+    } catch (error) {
+      if (res.headersSent) return;
+      res.status(error.code === 'EEXIST' ? 409 : 502)
+        .json({ error: 'No se pudo iniciar la actualización desde GitHub: ' + error.message });
+    }
+  });
+
+  app.post(
+    '/api/admin/actualizaciones/zip',
+    function (req, res, next) {
+      if (!req.contexto.admin) return res.status(403).json({ error: 'Solo admin.' });
+      if (!verificarSoporteActualizacionWeb(req, res)) return;
+      next();
+    },
+    express.raw({
+      type: ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
+      limit: TAMANO_MAX_ZIP_ACTUALIZACION
+    }),
+    async function (req, res) {
+      const version = String(req.query.version || '').trim();
+      if (!/^\d+\.\d+\.\d+$/.test(version)) {
+        return res.status(400).json({ error: 'Selecciona una versión válida para el ZIP.' });
+      }
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        return res.status(400).json({ error: 'El cuerpo de la solicitud debe ser un ZIP.' });
+      }
+      try {
+        const etiquetas = await obtenerEtiquetasGitHub();
+        const etiqueta = etiquetas.find(function (item) { return item.version === version; });
+        if (!etiqueta) return res.status(404).json({ error: 'La versión no está publicada como etiqueta en GitHub.' });
+        const sha256 = await verificarZipGitHub(version, req.body);
+        await solicitarActualizacionWeb(version, etiqueta.commitSha, 'zip', sha256, res);
+      } catch (error) {
+        if (res.headersSent) return;
+        const status = error.code === 'EEXIST' ? 409 : (error.message.indexOf('ZIP') !== -1 ? 400 : 502);
+        res.status(status).json({ error: 'No se pudo validar o iniciar la actualización ZIP: ' + error.message });
+      }
+    }
+  );
 
   app.get('/api/usuarios', function (req, res) { if (!req.contexto.admin) return res.status(403).json({ error: 'Solo admin.' }); res.json({ usuarios: getDB().prepare('SELECT id, nombre_windows FROM usuarios ORDER BY lower(nombre_windows) ASC').all() }); });
 

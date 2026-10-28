@@ -192,7 +192,8 @@ async function main() {
   // Manejo de errores genérico
   app.use((err, req, res, next) => {
     console.error('Error en request:', err);
-    res.status(500).json({ error: err.message });
+    const status = Number(err.status || err.statusCode);
+    res.status(status >= 400 && status <= 599 ? status : 500).json({ error: err.message });
   });
 
   // 6. Levantar el servidor. En servidores Linux se usa systemd y no

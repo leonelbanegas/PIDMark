@@ -362,6 +362,23 @@
       </main>
 
       <main id="pantallaUsuarios" style="display:none;">
+        <section id="panelActualizacionAdmin" style="display:none; margin:12px 0; padding:14px; border:1px solid #555; border-radius:8px;">
+          <h2 style="margin:0 0 8px;">Actualizar PID Mark</h2>
+          <p id="versionInstaladaAdmin" style="margin:0 0 10px;"></p>
+          <div class="barraAcciones" style="align-items:center; flex-wrap:wrap;">
+            <label for="versionActualizacionAdmin">Versión de GitHub:</label>
+            <select id="versionActualizacionAdmin" class="inputBusqueda"></select>
+            <button type="button" id="btnConsultarActualizaciones" class="btnSecundario">Consultar GitHub</button>
+            <button type="button" id="btnActualizarDesdeGitHub" class="btnPrimario">Actualizar desde GitHub</button>
+          </div>
+          <div class="barraAcciones" style="align-items:center; flex-wrap:wrap; margin-top:10px;">
+            <label for="archivoZipActualizacionAdmin">o ZIP fuente descargado desde esa etiqueta de GitHub:</label>
+            <input type="file" id="archivoZipActualizacionAdmin" accept=".zip,application/zip">
+            <button type="button" id="btnActualizarDesdeZip" class="btnSecundario">Validar ZIP e instalar</button>
+          </div>
+          <p id="estadoActualizacionAdmin" role="status" aria-live="polite" style="margin:10px 0 0;"></p>
+          <pre id="salidaActualizacionAdmin" style="display:none; max-height:220px; overflow:auto; white-space:pre-wrap;"></pre>
+        </section>
         <div class="cabeceraPantalla">
           <div class="cabeceraIzquierda">
             <div class="barraAcciones">
